@@ -1,20 +1,15 @@
 import Link from "next/link";
-import Questionnaire from "@/components/Questionnaire";
-// import { useState } from "react";
-
-// import QRCodeGenerator from "@/components/QRCodeGenerator";
-
 
 export default function Home() {
-
-  
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <Questionnaire />
-      </div>
-    
-              
+    <div className="text-center">        
+        <p className="mb-3">This experience requires introspection and vulnerability. If you are willing to take this on, proceed.</p>
+          <Link 
+              href="/questionnaire"
+              className="inline-block underline hover:no-underline"
+            >
+              I'm Ready
+            </Link>
     </div>
   );
 }

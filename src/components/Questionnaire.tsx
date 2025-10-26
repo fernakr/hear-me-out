@@ -1,22 +1,26 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import AutoResizeTextarea from './AutoResizeTextarea';
+import StartOverButton from './StartOverButton';
 
 export default function Questionnaire() {
+    const router = useRouter();
     const [questionIndex, setQuestionIndex] = useState(0);    
     
     const questions = [
         {
             id: 'internalize',
-            text: 'What is a recurring thing that you have trouble internalizing?',    
+            text: 'What is a recurring thing (belief, thought, behavior) that you have trouble internalizing?',    
         },
         {
             id: 'reasons',
-            text: 'What are the reasons why it\'s so hard to accept?'
+            text: 'What is/are hindering or preventing you from accepting this?'
         },
         {
             id: 'believe',
-            text: 'What would it take for you to believe it more deeply?'
+            text: 'What is/are things that would could help you to actually internalize this thing?'
         },
         {
             id: 'encouragement',
@@ -60,34 +64,23 @@ export default function Questionnaire() {
         }
     };
 
-    const areAllQuestionsAnswered = () => {
-        return responses.every(response => response && response.trim().length > 0);
+    const isFinalQuestionAnswered = () => {
+        const finalResponse = responses[questions.length - 1];
+        return finalResponse && finalResponse.trim().length > 0;
     };
 
-    const handleSubmit = async () => {
-        if (!areAllQuestionsAnswered()) {
-            alert('Please answer all questions before submitting.');
+    const handleSubmit = () => {
+        if (!isFinalQuestionAnswered()) {
+            alert('Please complete your encouraging phrase before submitting.');
             return;
         }
 
-        // You can customize this to send data to an API, save to a database, etc.
-        console.log('Questionnaire responses:', responses);
+        // Get just the final response (the encouragement phrase)
+        const finalResponse = responses[questions.length - 1];
         
-        // Example: Send to API
-        // try {
-        //     const response = await fetch('/api/questionnaire', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify({ responses, timestamp: new Date().toISOString() })
-        //     });
-        //     if (response.ok) {
-        //         alert('Responses submitted successfully!');
-        //     }
-        // } catch (error) {
-        //     console.error('Failed to submit:', error);
-        // }
-        
-        alert('Responses saved! Check console for details.');
+        // Navigate to final page with the encouragement phrase as a query parameter
+        const encodedResponse = encodeURIComponent(finalResponse);
+        router.push(`/final?message=${encodedResponse}`);
     };
 
     
@@ -97,86 +90,56 @@ export default function Questionnaire() {
     const maxLength = 300;
     
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4">
-                Self-Reflection Questionnaire
-            </h2>
+        <div className="w-full">
+            <div className="flex justify-between mb-4">
+                <StartOverButton />
+                <span>Question {questionIndex + 1} of {questions.length}</span>
+            </div>
 
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-                {currentQuestion.text}
-            </p>
-            <textarea 
-                value={responses[questionIndex] || ''} 
-                onChange={(e) => updateResponse(e.target.value)} 
-                className={`w-full border mb-3 p-3 rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
-                    !isCurrentQuestionAnswered() ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
-                }`}
-                rows={4}
-                maxLength={maxLength}
-                placeholder="Type your response here... (Required)"
-                required
-            />
-            <div className="flex justify-between text-sm mb-6">
-                <span className="text-gray-500 dark:text-gray-400">
-                    {`${(responses[questionIndex] || '').length}/${maxLength} characters`}
-                </span>
-                <span className={`font-medium ${
-                    isCurrentQuestionAnswered() 
-                        ? 'text-green-600 dark:text-green-400' 
-                        : 'text-red-500 dark:text-red-400'
-                }`}>
-                    {isCurrentQuestionAnswered() ? '✓ Answered' : '⚠ Required'}
-                </span>
+
+            <div>
+                <label>{currentQuestion.text}</label>
+                
+                <AutoResizeTextarea
+                    className="w-full border p-2 my-4"
+                    value={responses[questionIndex] || ''} 
+                    onChange={updateResponse}
+                    maxLength={maxLength}
+                    placeholder="Type your response here... (Required)"
+                    required
+                />
+            </div>
+            <div className="flex justify-between mb-4">
+                <span>{`${(responses[questionIndex] || '').length}/${maxLength} characters`}</span>
+                <span>{isCurrentQuestionAnswered() ? '✓ Answered' : '⚠ Required'}</span>
             </div>
             
-            {/* Progress bar */}
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-6">
-                <div 
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${((questionIndex + 1) / questions.length) * 100}%` }}
-                ></div>
+            <div>
+                <div style={{ width: `${((questionIndex + 1) / questions.length) * 100}%` }}></div>
             </div>
 
-            {/* Navigation buttons */}
-            <div className="flex justify-between items-center">
+            <div className={'flex justify-between mt-6' + (questionIndex === 0 ? ' justify-end' : '')}>
                 {questionIndex > 0 && (
-                    <button
-                        onClick={handlePrevious}
-                        className="bg-blue-500 hover:bg-blue-600 text-white cursor-pointer px-4 py-2 rounded transition-colors"
-                    >
+                    <button className="button"  onClick={handlePrevious}>
                         Previous Question
                     </button>
                 )}
                 
-                <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Question {questionIndex + 1} of {questions.length}
-                    </span>
-                </div>
-                
                 {questionIndex < questions.length - 1 ? (
                     <button
+                        className="button" 
                         onClick={handleNext}
                         disabled={!isCurrentQuestionAnswered()}
-                        className={`px-4 py-2 rounded transition-colors ${
-                            isCurrentQuestionAnswered()
-                                ? 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
-                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
                     >
                         Next Question
                     </button>
                 ) : (
                     <button
+                        className="button final"
                         onClick={handleSubmit}
-                        disabled={!areAllQuestionsAnswered()}
-                        className={`px-4 py-2 rounded transition-colors ${
-                            areAllQuestionsAnswered()
-                                ? 'bg-green-500 hover:bg-green-600 text-white cursor-pointer'
-                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
+                        disabled={!isFinalQuestionAnswered()}
                     >
-                        Submit Responses
+                        My phrase is ready
                     </button>
                 )}
             </div>
