@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-atkinson-hyperlegible-mono);
   --font-serif: var(--font-poppins);
   --font-mono: var(--font-geist-mono);
 }
@@ -23,7 +23,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-atkinson-hyperlegible-mono), system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,7 +64,7 @@ a {
 
 
 .button {
-  @apply text-black border px-3 py-2 cursor-pointer;
+  @apply text-black border px-3 py-2 cursor-pointer leading-tight;
 
   &:disabled {
     @apply opacity-50 cursor-not-allowed;
@@ -85,7 +85,7 @@ a {
 }
 
 label {
-  @apply block mb-2 font-bold;
+  @apply block mb-4 font-bold;
 }
 
 p {

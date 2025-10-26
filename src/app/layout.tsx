@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter, Poppins } from "next/font/google";
+import { Geist, Geist_Mono, Atkinson_Hyperlegible_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,9 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Popular, clean font for body text
-const inter = Inter({
-  variable: "--font-inter",
+// Accessible, clean font for body text
+const atkinsonHyperlegibleMono = Atkinson_Hyperlegible_Mono({
+  variable: "--font-atkinson-hyperlegible-mono",
+  weight: ["400", "700"],
   subsets: ["latin"],
 });
 
@@ -38,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} antialiased p-10 flex min-h-screen items-center justify-center `}
+        className={`${geistSans.variable} ${geistMono.variable} ${atkinsonHyperlegibleMono.variable} ${poppins.variable} antialiased p-10 flex min-h-screen items-center justify-center `}
       >
         {children}
       </body>

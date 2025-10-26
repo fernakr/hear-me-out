@@ -45,7 +45,7 @@ function FinalPageContent() {
         <StartOverButton />
       </div>
       <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4 ">Now the hard part.</h2>
-      <div className="grid lg:grid-cols-2 gap-10">
+      <div className="grid lg:grid-cols-2 lg:gap-10">
 
         <div className="col-span-1">
           <p>You will be reaching out to someone who will recite this phrase back to you.</p>

@@ -7,12 +7,12 @@ import StartOverButton from './StartOverButton';
 
 export default function Questionnaire() {
     const router = useRouter();
-    const [questionIndex, setQuestionIndex] = useState(0);    
-    
+    const [questionIndex, setQuestionIndex] = useState(0);
+
     const questions = [
         {
             id: 'internalize',
-            text: 'What is a recurring thing (belief, thought, behavior) that you have trouble internalizing?',    
+            text: 'What is a recurring thing (belief, thought, behavior) that you have trouble internalizing?',
         },
         {
             id: 'reasons',
@@ -29,7 +29,7 @@ export default function Questionnaire() {
     ]
 
     // Initialize responses array with empty strings for each question
-    const [responses, setResponses] = useState<string[]>(() => 
+    const [responses, setResponses] = useState<string[]>(() =>
         new Array(questions.length).fill('')
     );
 
@@ -77,57 +77,58 @@ export default function Questionnaire() {
 
         // Get just the final response (the encouragement phrase)
         const finalResponse = responses[questions.length - 1];
-        
+
         // Navigate to final page with the encouragement phrase as a query parameter
         const encodedResponse = encodeURIComponent(finalResponse);
         router.push(`/final?message=${encodedResponse}`);
     };
 
-    
+
 
 
 
     const maxLength = 300;
-    
+
     return (
         <div className="w-full max-w-4xl ">
-            <div className="flex justify-between mb-4">
+            <div className="flex justify-between mb-8">
                 <StartOverButton />
                 <span>Question {questionIndex + 1} of {questions.length}</span>
             </div>
 
 
-            <div>
-                <label>{currentQuestion.text}</label>
-                
+            <div className="lg:py-10">
+                <label className="lg:text-xl mb-3">{currentQuestion.text}</label>
+
                 <AutoResizeTextarea
-                    className="w-full border p-2 my-4"
-                    value={responses[questionIndex] || ''} 
+                    className="w-full border p-2"
+                    value={responses[questionIndex] || ''}
                     onChange={updateResponse}
                     maxLength={maxLength}
                     placeholder="Type your response here... (Required)"
                     required
                 />
+                <div className="flex justify-between mt-2 text-sm text-gray-500">
+                    <span>{`${(responses[questionIndex] || '').length}/${maxLength} characters`}</span>
+                    <span>{isCurrentQuestionAnswered() ? '✓ Answered' : '⚠ Required'}</span>
+                </div>
             </div>
-            <div className="flex justify-between mb-4">
-                <span>{`${(responses[questionIndex] || '').length}/${maxLength} characters`}</span>
-                <span>{isCurrentQuestionAnswered() ? '✓ Answered' : '⚠ Required'}</span>
-            </div>
-            
+
+
             <div>
                 <div style={{ width: `${((questionIndex + 1) / questions.length) * 100}%` }}></div>
             </div>
 
             <div className={'flex justify-between mt-6 gap-4' + (questionIndex === 0 ? ' justify-end' : '')}>
                 {questionIndex > 0 && (
-                    <button className="button"  onClick={handlePrevious}>
+                    <button className="button" onClick={handlePrevious}>
                         Previous Question
                     </button>
                 )}
-                
+
                 {questionIndex < questions.length - 1 ? (
                     <button
-                        className="button" 
+                        className="button"
                         onClick={handleNext}
                         disabled={!isCurrentQuestionAnswered()}
                     >
