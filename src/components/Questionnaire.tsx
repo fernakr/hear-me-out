@@ -12,19 +12,24 @@ export default function Questionnaire() {
     const questions = [
         {
             id: 'internalize',
-            text: 'What is something (belief, thought, behavior) that you have trouble internalizing? Or what is something you want to be better at?',
+            text: 'What is something (belief, thought, behavior) that you have trouble internalizing?',
+            subtext: 'Could be a big thing, a small thing, or anything in between.'
         },
         {
             id: 'reasons',
-            text: 'What is/are the things holding you back?'
+            text: 'What is/are the things holding you back?',
+            subtext: 'These could be internal (self-doubt, fear, etc.) or external (lack of resources, unsupportive environment, etc.)'
         },
         {
             id: 'believe',
-            text: 'What is/are the things (behaviors, resources, tools) that could help you with this?'
+            text: 'What is/are the things (behaviors, resources, tools) that could help you with this?',
+            subtext: 'These could be internal (mindset shifts, habits, etc.) or external (support systems, opportunities, etc.)'
+
         },
         {
             id: 'encouragement',
-            text: 'Write a message in the form of "You [can/are/will]...". Imagine you are talking to a close friend and what you would say to encourage them in this situation.'
+            text: 'Write a message in the form of "You [can/are/will]...". Imagine you are talking to a close friend and what you would say to encourage them in this situation.',
+
         }
     ]
 
@@ -100,6 +105,9 @@ export default function Questionnaire() {
 
             <div className="lg:py-10">
                 <label htmlFor="answer" className="md:text-2xl lg:text-3xl mb-3">{currentQuestion.text}</label>
+                {currentQuestion.subtext && (
+                    <p className="mb-4 text-gray-600">{currentQuestion.subtext}</p>
+                )}
 
                 <AutoResizeTextarea
                     id="answer"
