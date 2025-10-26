@@ -45,11 +45,18 @@ export default function AutoResizeTextarea({
     autoResize();
   }, [value]);
 
+  // On Android, allow manual vertical resize for better compatibility
+  // Use resize: vertical and remove overflow-hidden for mobile
+  const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+  const textareaClass = isAndroid
+    ? `resize-vertical ${className}`
+    : `resize-none overflow-hidden ${className}`;
+
   return (
     <textarea
       ref={textareaRef}
       id={id}
-      className={`resize-none overflow-hidden ${className}`}
+      className={textareaClass}
       value={value}
       onChange={handleChange}
       rows={1}

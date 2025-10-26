@@ -17,6 +17,7 @@ function FinalPageContent() {
   const encouragingMessage = messageFromQuestionnaire || "You are capable of amazing things. Trust yourself and take that next step forward.";
   const [fullMessage, setFullMessage] = useState(`Could you do me a favor and record a voice memo saying the following and send it to me: \r\r"${encouragingMessage}" \r\rFeel free to put your own spin to it or record it in a way that feels right.\r\r(This has been created as a part of an art project exploring vulnerability, support, and mutual aid.)`);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [showManualCopy, setShowManualCopy] = useState(false);
 
   const copyToClipboard = async () => {
     try {
@@ -24,16 +25,26 @@ function FinalPageContent() {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
-      console.error('Failed to copy text: ', err);
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = fullMessage;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
+      // Fallback for older browsers and Android
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = fullMessage;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (successful) {
+          setCopySuccess(true);
+          setTimeout(() => setCopySuccess(false), 2000);
+        } else {
+          setShowManualCopy(true);
+        }
+      } catch (e) {
+        setShowManualCopy(true);
+      }
     }
   };
 
@@ -84,6 +95,11 @@ function FinalPageContent() {
               {copySuccess ? '✓ Copied!' : 'Copy Text'}
             </button>
           </div>
+          {showManualCopy && (
+            <div className="mb-2 text-xs text-red-600">
+              <p>Copy not supported on this device/browser. Please select the text above and copy it manually.</p>
+            </div>
+          )}
 
         </div>
         <div className="lg:w-1/4 w-full">
