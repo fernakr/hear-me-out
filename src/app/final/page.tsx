@@ -52,7 +52,7 @@ function FinalPageContent() {
 
 
     <div className="max-w-4xl">
-      <div className="mb-4">
+      <div className="mb-4 flex justify-end">
         <StartOverButton />
       </div>
       <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4 ">Now the hard part.</h2>

@@ -92,8 +92,9 @@ export default function Questionnaire() {
     return (
         <div className="w-full max-w-4xl ">
             <div className="flex justify-between mb-8">
-                <StartOverButton />
+
                 <span>Question {questionIndex + 1} of {questions.length}</span>
+                <StartOverButton />
             </div>
 
 
