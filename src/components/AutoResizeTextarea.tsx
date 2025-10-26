@@ -45,6 +45,24 @@ export default function AutoResizeTextarea({
     autoResize();
   }, [value]);
 
+  // Handle window resize to adjust textarea height
+  useEffect(() => {
+    const handleWindowResize = () => {
+      // Use setTimeout to ensure the resize happens after layout changes
+      setTimeout(autoResize, 100);
+    };
+
+    window.addEventListener('resize', handleWindowResize);
+    
+    // Also handle orientation change for mobile devices
+    window.addEventListener('orientationchange', handleWindowResize);
+
+    return () => {
+      window.removeEventListener('resize', handleWindowResize);
+      window.removeEventListener('orientationchange', handleWindowResize);
+    };
+  }, []);
+
   // On Android, allow manual vertical resize for better compatibility
   // Use resize: vertical and remove overflow-hidden for mobile
   const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);

@@ -28,7 +28,7 @@ body {
 
 a {
   @apply text-blue-600 underline;
-  text-underline-offset: 0.5em;
+  text-underline-offset: 0.3em;
 
   &:hover {
     @apply no-underline;
@@ -46,14 +46,14 @@ a {
 
 
 .button {
-  @apply text-black border px-3 py-2 cursor-pointer leading-tight;
+  @apply text-blue-600 border px-3 py-2 cursor-pointer leading-tight;
 
   &:disabled {
     @apply opacity-50 cursor-not-allowed;
   }
 
   &:not(:disabled) {
-    @apply hover:bg-black hover:text-white;
+    @apply hover:bg-blue-600 hover:text-white;
   }
 
   &.final {
@@ -70,10 +70,10 @@ a {
 @media (prefers-color-scheme: dark) {
 
   .button {
-    @apply text-white;
+    @apply text-yellow-200;
 
     &:not(:disabled) {
-      @apply hover:bg-white hover:text-black;
+      @apply hover:bg-yellow-200 hover:text-black;
     }
 
     &.final {
@@ -92,4 +92,15 @@ label {
 
 p {
   @apply mb-4;
+}
+
+textarea {
+  @apply w-full border border-blue-600 rounded-md p-2 resize-y;
+  /* min-height: 100px; */
+}
+
+@media (prefers-color-scheme: dark) {
+  textarea {
+    @apply border-yellow-600;
+  }
 }
