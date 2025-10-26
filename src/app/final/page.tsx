@@ -15,7 +15,7 @@ function FinalPageContent() {
 
   // Use the message from questionnaire, or fall back to a default
   const encouragingMessage = messageFromQuestionnaire || "You are capable of amazing things. Trust yourself and take that next step forward.";
-  const [fullMessage, setFullMessage] = useState(`Could you do me a favor and record a voice memo saying the following and send it to me: \r\r"${encouragingMessage}" \r\rFeel free to put your own spin to it or record it in a way that feels right.\r\r(This has been created as a part of an art project exploring vulnerability, support, and mutual aid.)`);
+  const [fullMessage, setFullMessage] = useState(`Could you do me a favor and record a voice memo saying the following and send it to me: \n\n"${encouragingMessage}" \n\nFeel free to put your own spin to it or record it in a way that feels right.\n\n(This has been created as a part of an art project exploring vulnerability, support, and mutual aid.)`);
   const [copySuccess, setCopySuccess] = useState(false);
   const [showManualCopy, setShowManualCopy] = useState(false);
 
