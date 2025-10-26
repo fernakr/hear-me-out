@@ -26,25 +26,68 @@ body {
   font-family: var(--font-inter), system-ui, sans-serif;
 }
 
-.button{
-    @apply border px-3 py-2 text-white;
+@media (prefers-color-scheme: dark) {
+
+  .button {
+    @apply text-white;
+
     &:not(:disabled) {
-        @apply hover:bg-white hover:text-black cursor-pointer;
+      @apply hover:bg-white hover:text-black;
     }
-    &:disabled {
-        @apply opacity-50 cursor-not-allowed;
+
+    &.final {
+      @apply bg-yellow-200 text-black;
+
+      &:not(:disabled) {
+        @apply hover:bg-yellow-700;
+      }
     }
-    &.final{
-        @apply bg-yellow-200 text-black;
-        &:not(:disabled) {
-            @apply hover:bg-yellow-700;
-        }
-    }
-}
-label{
-    @apply block mb-2 font-bold;
+  }
 }
 
-p{
-    @apply mb-4;
+a {
+  @apply text-blue-600 underline;
+
+  &:hover {
+    @apply no-underline;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  a {
+    @apply text-yellow-200;
+
+
+  }
+}
+
+
+
+.button {
+  @apply text-black border px-3 py-2 cursor-pointer;
+
+  &:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  &:not(:disabled) {
+    @apply hover:bg-black hover:text-white;
+  }
+
+  &.final {
+    @apply bg-blue-200 text-black;
+
+    &:not(:disabled) {
+      @apply hover:bg-blue-700;
+    }
+
+  }
+}
+
+label {
+  @apply block mb-2 font-bold;
+}
+
+p {
+  @apply mb-4;
 }
