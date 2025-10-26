@@ -90,7 +90,7 @@ export default function Questionnaire() {
     const maxLength = 300;
     
     return (
-        <div className="w-full">
+        <div className="w-full max-w-4xl ">
             <div className="flex justify-between mb-4">
                 <StartOverButton />
                 <span>Question {questionIndex + 1} of {questions.length}</span>
@@ -118,7 +118,7 @@ export default function Questionnaire() {
                 <div style={{ width: `${((questionIndex + 1) / questions.length) * 100}%` }}></div>
             </div>
 
-            <div className={'flex justify-between mt-6' + (questionIndex === 0 ? ' justify-end' : '')}>
+            <div className={'flex justify-between mt-6 gap-4' + (questionIndex === 0 ? ' justify-end' : '')}>
                 {questionIndex > 0 && (
                     <button className="button"  onClick={handlePrevious}>
                         Previous Question

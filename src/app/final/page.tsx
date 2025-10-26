@@ -40,7 +40,7 @@ function FinalPageContent() {
   return (
 
           
-          <div>
+          <div className="max-w-4xl">
             <div className="mb-4">
               <StartOverButton />
             </div>
@@ -76,9 +76,9 @@ function FinalPageContent() {
               </div>
               <div className="lg:w-1/4 w-full">
                 
-
+                <p className="text-sm text-gray-200 mb-4">💡 Already on your phone? Use "Copy Text" to copy the message directly.</p> 
                 <QRCodeGenerator text={fullMessage} />
-                <p className="text-sm text-gray-200 mt-4">💡 Already on your phone? Use the "Copy Text" button to copy the message directly.</p> 
+                
               </div>
             </div>
           </div>
