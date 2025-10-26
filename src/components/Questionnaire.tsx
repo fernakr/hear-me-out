@@ -17,12 +17,12 @@ export default function Questionnaire() {
         },
         {
             id: 'reasons',
-            text: 'What is/are the things holding you back?',
+            text: 'What is/are the thing(s) holding you back?',
             subtext: 'These could be internal (self-doubt, fear, etc.) or external (lack of resources, unsupportive environment, etc.)'
         },
         {
             id: 'believe',
-            text: 'What is/are the things (behaviors, resources, tools) that could help you with this?',
+            text: 'What is/are the thing(s) (behaviors, resources, tools) that could help you with this?',
             subtext: 'These could be internal (mindset shifts, habits, etc.) or external (support systems, opportunities, etc.)'
 
         },
