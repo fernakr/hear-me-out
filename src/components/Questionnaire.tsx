@@ -99,7 +99,7 @@ export default function Questionnaire() {
 
 
             <div className="lg:py-10">
-                <label className="lg:text-xl mb-3">{currentQuestion.text}</label>
+                <label className="lg:text-2xl mb-3">{currentQuestion.text}</label>
 
                 <AutoResizeTextarea
                     className="w-full border p-2"
