@@ -28,6 +28,7 @@ body {
 
 a {
   @apply text-blue-600 underline;
+  text-underline-offset: 0.5em;
 
   &:hover {
     @apply no-underline;
