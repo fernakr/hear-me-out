@@ -12,15 +12,15 @@ export default function Questionnaire() {
     const questions = [
         {
             id: 'internalize',
-            text: 'What is a recurring thing (belief, thought, behavior) that you have trouble internalizing?',
+            text: 'What is something (belief, thought, behavior) that you have trouble internalizing? Or what is something you want to be better at?',
         },
         {
             id: 'reasons',
-            text: 'What is/are hindering or preventing you from accepting this?'
+            text: 'What is/are the things holding you back?'
         },
         {
             id: 'believe',
-            text: 'What is/are things that would could help you to actually internalize this thing?'
+            text: 'What is/are the things (behaviors, resources, tools) that could help you with this?'
         },
         {
             id: 'encouragement',
