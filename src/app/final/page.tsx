@@ -59,7 +59,7 @@ function FinalPageContent() {
       <div className="grid lg:grid-cols-2 lg:gap-10">
 
         <div className="col-span-1">
-          <p>You will be reaching out to someone who will recite this phrase back to you.</p>
+          <p>You will be reaching out to someone who will recite this message back to you.</p>
           <p>Sharing with others is vulnerable, but it also can be easier to be encouraged by the voice of others than your own voice.</p>
           <p>Once they send you the voice note, you should save it so you can replay it whenever you need a reminder.</p>
         </div>

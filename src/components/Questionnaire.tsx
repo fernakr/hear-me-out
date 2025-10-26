@@ -24,7 +24,7 @@ export default function Questionnaire() {
         },
         {
             id: 'encouragement',
-            text: 'Write a phrase in the form of "You [can/are/will]...". Imagine you are talking to a close friend and what you would say to encourage them in this situation.'
+            text: 'Write a message in the form of "You [can/are/will]...". Imagine you are talking to a close friend and what you would say to encourage them in this situation.'
         }
     ]
 
@@ -71,14 +71,14 @@ export default function Questionnaire() {
 
     const handleSubmit = () => {
         if (!isFinalQuestionAnswered()) {
-            alert('Please complete your encouraging phrase before submitting.');
+            alert('Please complete your encouraging message before submitting.');
             return;
         }
 
-        // Get just the final response (the encouragement phrase)
+        // Get just the final response (the encouragement message)
         const finalResponse = responses[questions.length - 1];
 
-        // Navigate to final page with the encouragement phrase as a query parameter
+        // Navigate to final page with the encouragement message as a query parameter
         const encodedResponse = encodeURIComponent(finalResponse);
         router.push(`/final?message=${encodedResponse}`);
     };
@@ -141,7 +141,7 @@ export default function Questionnaire() {
                         onClick={handleSubmit}
                         disabled={!isFinalQuestionAnswered()}
                     >
-                        My phrase is ready
+                        My message is ready
                     </button>
                 )}
             </div>
