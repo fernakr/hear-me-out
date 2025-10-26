@@ -26,25 +26,6 @@ body {
   font-family: var(--font-atkinson-hyperlegible-mono), system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-
-  .button {
-    @apply text-white;
-
-    &:not(:disabled) {
-      @apply hover:bg-white hover:text-black;
-    }
-
-    &.final {
-      @apply bg-yellow-200 text-black;
-
-      &:not(:disabled) {
-        @apply hover:bg-yellow-700;
-      }
-    }
-  }
-}
-
 a {
   @apply text-blue-600 underline;
 
@@ -81,6 +62,26 @@ a {
       @apply hover:bg-blue-700;
     }
 
+  }
+}
+
+
+@media (prefers-color-scheme: dark) {
+
+  .button {
+    @apply text-white;
+
+    &:not(:disabled) {
+      @apply hover:bg-white hover:text-black;
+    }
+
+    &.final {
+      @apply bg-yellow-200 text-black;
+
+      &:not(:disabled) {
+        @apply hover:bg-yellow-700;
+      }
+    }
   }
 }
 
