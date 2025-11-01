@@ -1,621 +1,368 @@
 'use client'
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-// The 'transformers' import must be dynamic for Next.js to avoid SSR issues.
-// We'll manage the import within useEffect.
-
-// The model name we're using - back to DistilGPT-2 with different approach
-const MODEL_NAME = 'Xenova/distilgpt2';
-
-// Constants for better performance
-const INITIAL_PREDICTION_DELAY = 100;
-
-// Type for the transformers pipeline - use unknown to bypass type checking issues
-type TextGenerationPipeline = unknown;
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 
 export default function PredictionInput() {
-    // State to manage model loading
-    const [isModelLoading, setIsModelLoading] = useState<boolean>(true);
-    const [modelError, setModelError] = useState<string | null>(null);
     // State for the user's input text - start with "I " by default
     const [inputText, setInputText] = useState<string>('I ');
     // State for the generated suggestions - now with separation between new and previous
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [previousSuggestions, setPreviousSuggestions] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
-    // Track if this is the first interaction (for immediate suggestions)
-    const [isFirstRun, setIsFirstRun] = useState<boolean>(true);
-
-    // Use a ref to hold the generator pipeline object so it persists across renders
-    const generatorRef = useRef<TextGenerationPipeline | null>(null);
-
-    // Track if we're waiting for the delay to provide suggestions
-    const [isWaitingForSuggestions, setIsWaitingForSuggestions] = useState<boolean>(false);
 
     // Track typing activity for "Take your time..." message
     const [showTakeYourTime, setShowTakeYourTime] = useState<boolean>(false);
     const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Flag to prevent overlapping predictions
-    const [isPredicting, setIsPredicting] = useState<boolean>(false);
+    // Track initial load for immediate suggestions
+    const [hasInitialized, setHasInitialized] = useState<boolean>(false);
 
-    // AbortController for cancelling predictions
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    // --- 1. Model Loading ---
-    useEffect(() => {
-        let isMounted = true;
-
-        // Dynamic import of the pipeline function
-        async function loadPipeline() {
-            try {
-                // Check if we're in a browser environment
-                if (typeof window === 'undefined') {
-                    console.warn('Transformers library requires browser environment');
-                    setModelError('ML features require browser environment');
-                    setIsModelLoading(false);
-                    return;
-                }
-
-                // This import ensures the heavy library code only runs in the browser
-                const { pipeline, env } = await import('@xenova/transformers');
-
-                // Configure the environment for browser usage with more permissive settings
-                env.allowRemoteModels = true;
-                env.allowLocalModels = false;
-                
-                // Add better error handling for CORS and network issues
-                env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/';
-
-                if (!isMounted) return;
-
-                console.log('Loading ML model for text predictions...');
-                
-                // Initialize the pipeline and store it in the ref with timeout
-                const modelLoadTimeout = setTimeout(() => {
-                    if (isMounted) {
-                        console.error('Model loading timeout');
-                        setModelError('Model loading timeout - using fallback suggestions');
-                        setIsModelLoading(false);
-                    }
-                }, 15000); // 15 second timeout
-
-                generatorRef.current = (await pipeline('text-generation', MODEL_NAME, {
-                    revision: 'main',
-                    quantized: true,
-                    progress_callback: (progress: any) => {
-                        if (progress && progress.status) {
-                            console.log('Model loading progress:', progress.status);
-                        }
-                    }
-                })) as TextGenerationPipeline;
-
-                clearTimeout(modelLoadTimeout);
-                
-                if (!isMounted) return;
-                console.log('ML model loaded successfully');
-                setIsModelLoading(false);
-            } catch (error) {
-                console.error('Error loading model:', error);
-                if (!isMounted) return;
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                console.warn('Falling back to pattern-based suggestions due to:', errorMessage);
-                setModelError(`ML model unavailable: ${errorMessage}`);
-                setIsModelLoading(false);
-            }
-        }
-
-        loadPipeline();
-
-        // Cleanup function for the effect
-        return () => {
-            isMounted = false;
-            const typingTimer = typingTimerRef.current;
-            if (typingTimer) {
-                clearTimeout(typingTimer);
-            }
-            // Cancel any ongoing predictions on unmount
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
-    }, []); // Empty dependency array means this runs only once on mount
-
-    // --- 2. Therapeutic & Introspective Words for Self-Reflection ---
-    // Pre-defined word sets for better performance
-    // Curated therapeutic word sets with intent-based categories
+    // --- Therapeutic Word Sets ---
+    // Expanded therapeutic word sets with intent-based categories for maximum variety
     const THERAPEUTIC_WORD_SETS = useMemo(() => ({
-        // Emotional states and feelings
-        emotions: ['feel', 'felt', 'feeling', 'emotional', 'overwhelmed', 'anxious', 'stressed', 'worried', 'sad', 'angry', 'frustrated', 'hopeful', 'grateful', 'calm', 'peaceful', 'excited', 'nervous', 'relieved', 'disappointed', 'proud'],
+        // Emotional states and feelings - expanded
+        emotions: ['feel', 'felt', 'feeling', 'emotional', 'overwhelmed', 'anxious', 'stressed', 'worried', 'sad', 'angry', 'frustrated', 'hopeful', 'grateful', 'calm', 'peaceful', 'excited', 'nervous', 'relieved', 'disappointed', 'proud', 'joyful', 'content', 'satisfied', 'fulfilled', 'empty', 'numb', 'hurt', 'pain', 'aching', 'tender', 'vulnerable', 'raw', 'sensitive', 'fragile', 'strong', 'powerful', 'confident', 'insecure', 'jealous', 'envious', 'guilty', 'ashamed', 'embarrassed', 'humiliated', 'rejected', 'abandoned', 'lonely', 'isolated', 'connected', 'loved', 'cherished', 'valued', 'appreciated', 'supported', 'understood', 'heard', 'seen', 'validated', 'accepted', 'welcomed', 'embraced'],
 
-        // Challenges and difficulties
-        struggles: ['struggle', 'struggling', 'difficult', 'challenging', 'hard', 'tough', 'overwhelming', 'stuck', 'lost', 'confused', 'uncertain', 'afraid', 'scared', 'troubled', 'bothered', 'stressed'],
+        // Challenges and difficulties - expanded  
+        struggles: ['struggle', 'struggling', 'difficult', 'challenging', 'hard', 'tough', 'overwhelming', 'stuck', 'lost', 'confused', 'uncertain', 'afraid', 'scared', 'troubled', 'bothered', 'stressed', 'pressured', 'burdened', 'weighed', 'heavy', 'exhausted', 'drained', 'depleted', 'burnt', 'tired', 'fatigued', 'worn', 'beaten', 'defeated', 'hopeless', 'helpless', 'powerless', 'weak', 'fragile', 'broken', 'shattered', 'damaged', 'wounded', 'injured', 'traumatized', 'triggered', 'activated', 'dysregulated', 'imbalanced', 'unstable', 'chaotic', 'messy', 'complicated', 'complex', 'tangled', 'knotted', 'twisted', 'distorted', 'warped', 'skewed', 'biased', 'prejudiced', 'judgmental', 'critical', 'harsh', 'severe'],
 
-        // Needs and desires
-        needs: ['need', 'want', 'require', 'seek', 'hope', 'wish', 'desire', 'long', 'crave', 'yearn', 'miss', 'lack', 'require', 'deserve'],
+        // Needs and desires - expanded
+        needs: ['need', 'want', 'require', 'seek', 'hope', 'wish', 'desire', 'long', 'crave', 'yearn', 'miss', 'lack', 'require', 'deserve', 'demand', 'request', 'ask', 'plead', 'beg', 'pray', 'dream', 'fantasize', 'imagine', 'envision', 'picture', 'see', 'visualize', 'anticipate', 'expect', 'await', 'look', 'search', 'hunt', 'pursue', 'chase', 'follow', 'track', 'trace', 'find', 'discover', 'uncover', 'reveal', 'expose', 'show', 'demonstrate', 'prove', 'establish', 'create', 'build', 'construct', 'develop', 'generate', 'produce', 'make', 'craft', 'design', 'plan', 'organize', 'arrange', 'structure'],
 
-        // Support and resources
-        support: ['help', 'support', 'guidance', 'comfort', 'understanding', 'compassion', 'empathy', 'care', 'love', 'acceptance', 'validation', 'encouragement'],
+        // Support and resources - expanded
+        support: ['help', 'support', 'guidance', 'comfort', 'understanding', 'compassion', 'empathy', 'care', 'love', 'acceptance', 'validation', 'encouragement', 'assistance', 'aid', 'relief', 'rescue', 'salvation', 'healing', 'recovery', 'restoration', 'renewal', 'revival', 'resurrection', 'transformation', 'change', 'growth', 'development', 'progress', 'advancement', 'improvement', 'enhancement', 'enrichment', 'nourishment', 'nurturing', 'cultivation', 'fostering', 'promoting', 'encouraging', 'inspiring', 'motivating', 'empowering', 'strengthening', 'fortifying', 'reinforcing', 'backing', 'endorsing', 'advocating', 'championing', 'defending', 'protecting', 'safeguarding', 'securing', 'ensuring', 'guaranteeing', 'promising', 'assuring', 'confirming', 'affirming', 'validating'],
 
-        // Actions and behaviors
-        actions: ['try', 'attempt', 'work', 'practice', 'learn', 'grow', 'change', 'improve', 'develop', 'progress', 'move', 'step', 'start', 'continue', 'stop'],
+        // Actions and behaviors - expanded
+        actions: ['try', 'attempt', 'work', 'practice', 'learn', 'grow', 'change', 'improve', 'develop', 'progress', 'move', 'step', 'start', 'continue', 'stop', 'begin', 'initiate', 'commence', 'launch', 'embark', 'undertake', 'pursue', 'engage', 'participate', 'involve', 'contribute', 'collaborate', 'cooperate', 'coordinate', 'organize', 'plan', 'prepare', 'arrange', 'schedule', 'prioritize', 'focus', 'concentrate', 'dedicate', 'commit', 'devote', 'invest', 'spend', 'allocate', 'distribute', 'share', 'give', 'offer', 'provide', 'supply', 'deliver', 'present', 'show', 'demonstrate', 'exhibit', 'display', 'express', 'communicate', 'convey', 'transmit', 'send', 'receive', 'accept', 'embrace', 'welcome', 'invite', 'include', 'incorporate', 'integrate', 'combine', 'merge', 'blend', 'mix', 'unite', 'join', 'connect'],
 
-        // Thoughts and cognition
-        thoughts: ['think', 'believe', 'wonder', 'question', 'doubt', 'know', 'understand', 'realize', 'recognize', 'remember', 'forget', 'imagine', 'consider'],
+        // Thoughts and cognition - expanded
+        thoughts: ['think', 'believe', 'wonder', 'question', 'doubt', 'know', 'understand', 'realize', 'recognize', 'remember', 'forget', 'imagine', 'consider', 'contemplate', 'ponder', 'reflect', 'meditate', 'analyze', 'examine', 'study', 'investigate', 'explore', 'discover', 'uncover', 'reveal', 'expose', 'identify', 'detect', 'notice', 'observe', 'perceive', 'sense', 'feel', 'experience', 'encounter', 'meet', 'face', 'confront', 'challenge', 'question', 'query', 'inquire', 'ask', 'wonder', 'speculate', 'hypothesize', 'theorize', 'assume', 'presume', 'suppose', 'guess', 'estimate', 'calculate', 'measure', 'evaluate', 'assess', 'judge', 'critique', 'review', 'examine', 'inspect', 'check', 'verify', 'confirm', 'validate', 'prove', 'demonstrate', 'show', 'illustrate', 'explain', 'clarify', 'illuminate', 'enlighten'],
 
-        // Relationships and social
-        relationships: ['family', 'friends', 'partner', 'therapist', 'people', 'others', 'community', 'connections', 'relationships', 'loved', 'alone'],
+        // Relationships and social - expanded
+        relationships: ['family', 'friends', 'partner', 'therapist', 'people', 'others', 'community', 'connections', 'relationships', 'loved', 'alone', 'parents', 'children', 'siblings', 'relatives', 'colleagues', 'coworkers', 'teammates', 'classmates', 'neighbors', 'acquaintances', 'strangers', 'enemies', 'rivals', 'competitors', 'allies', 'supporters', 'advocates', 'mentors', 'guides', 'teachers', 'students', 'learners', 'followers', 'leaders', 'bosses', 'employees', 'customers', 'clients', 'patients', 'doctors', 'nurses', 'counselors', 'coaches', 'advisors', 'consultants', 'experts', 'professionals', 'specialists', 'authorities', 'figures', 'role-models', 'heroes', 'inspirations', 'influences', 'impacts', 'effects', 'consequences', 'results', 'outcomes', 'achievements', 'successes', 'failures', 'mistakes', 'errors', 'lessons', 'experiences', 'memories', 'moments', 'times', 'periods', 'phases', 'stages', 'chapters'],
 
-        // Time and frequency
-        time: ['today', 'yesterday', 'tomorrow', 'recently', 'lately', 'often', 'sometimes', 'always', 'never', 'usually', 'currently'],
+        // Time and frequency - expanded
+        time: ['today', 'yesterday', 'tomorrow', 'recently', 'lately', 'often', 'sometimes', 'always', 'never', 'usually', 'currently', 'now', 'then', 'soon', 'later', 'before', 'after', 'during', 'while', 'when', 'whenever', 'until', 'since', 'from', 'through', 'throughout', 'within', 'beyond', 'past', 'present', 'future', 'permanent', 'temporary', 'brief', 'short', 'long', 'extended', 'prolonged', 'continuous', 'constant', 'regular', 'irregular', 'frequent', 'infrequent', 'rare', 'occasional', 'periodic', 'cyclical', 'seasonal', 'annual', 'monthly', 'weekly', 'daily', 'hourly', 'momentary', 'instant', 'immediate', 'delayed', 'postponed', 'scheduled', 'planned', 'unexpected', 'sudden', 'gradual', 'slow', 'fast', 'quick', 'rapid', 'swift', 'hasty', 'rushed', 'calm', 'patient', 'steady', 'consistent', 'persistent'],
 
-        // Connective and transitional words
-        connectors: ['and', 'but', 'or', 'so', 'because', 'although', 'however', 'therefore', 'meanwhile', 'also', 'too', 'even', 'still', 'yet', 'then']
+        // Connective and transitional words - expanded
+        connectors: ['and', 'but', 'or', 'so', 'because', 'although', 'however', 'therefore', 'meanwhile', 'also', 'too', 'even', 'still', 'yet', 'then', 'thus', 'hence', 'consequently', 'accordingly', 'furthermore', 'moreover', 'additionally', 'besides', 'likewise', 'similarly', 'conversely', 'alternatively', 'otherwise', 'instead', 'rather', 'nonetheless', 'nevertheless', 'regardless', 'despite', 'though', 'whereas', 'while', 'since', 'unless', 'until', 'before', 'after', 'when', 'whenever', 'where', 'wherever', 'why', 'how', 'what', 'which', 'who', 'whom', 'whose', 'that', 'this', 'these', 'those', 'such', 'same', 'different', 'other', 'another', 'each', 'every', 'all', 'some', 'any', 'no', 'none', 'both', 'either', 'neither', 'first', 'second', 'third', 'last', 'final', 'initial', 'previous', 'next', 'following', 'subsequent', 'prior', 'former', 'latter'],
+
+        // Adverbs for emotional expression and intensity
+        adverbs: ['deeply', 'truly', 'really', 'very', 'extremely', 'incredibly', 'amazingly', 'surprisingly', 'suddenly', 'gradually', 'slowly', 'quickly', 'gently', 'softly', 'harshly', 'strongly', 'powerfully', 'weakly', 'barely', 'completely', 'partially', 'fully', 'entirely', 'totally', 'absolutely', 'definitely', 'probably', 'possibly', 'maybe', 'perhaps', 'clearly', 'obviously', 'apparently', 'seemingly', 'genuinely', 'honestly', 'sincerely', 'carefully', 'thoughtfully', 'mindfully', 'consciously', 'unconsciously', 'naturally', 'easily', 'hardly', 'frequently', 'rarely', 'constantly', 'continuously', 'intermittently', 'temporarily', 'permanently', 'immediately', 'eventually', 'finally', 'initially', 'recently', 'currently', 'presently'],
+
+        // Descriptive adjectives for feelings and experiences  
+        adjectives: ['overwhelming', 'challenging', 'difficult', 'easy', 'simple', 'complex', 'complicated', 'confusing', 'clear', 'unclear', 'bright', 'dark', 'heavy', 'light', 'intense', 'mild', 'severe', 'gentle', 'harsh', 'soft', 'hard', 'smooth', 'rough', 'calm', 'chaotic', 'peaceful', 'turbulent', 'stable', 'unstable', 'consistent', 'inconsistent', 'reliable', 'unreliable', 'predictable', 'unpredictable', 'familiar', 'unfamiliar', 'comfortable', 'uncomfortable', 'safe', 'unsafe', 'secure', 'insecure', 'confident', 'uncertain', 'positive', 'negative', 'optimistic', 'pessimistic', 'hopeful', 'hopeless', 'meaningful', 'meaningless', 'valuable', 'worthless', 'important', 'unimportant', 'significant', 'insignificant', 'relevant', 'irrelevant', 'useful', 'useless', 'helpful', 'harmful', 'beneficial', 'detrimental', 'healthy', 'unhealthy', 'toxic', 'nourishing'],
+
+        // Specific life areas and skills people work on
+        lifeAreas: ['music', 'art', 'creativity', 'writing', 'drawing', 'painting', 'singing', 'dancing', 'cooking', 'fitness', 'exercise', 'running', 'yoga', 'meditation', 'mindfulness', 'reading', 'learning', 'studying', 'education', 'career', 'work', 'job', 'business', 'leadership', 'management', 'communication', 'public-speaking', 'social-skills', 'relationships', 'dating', 'marriage', 'parenting', 'friendship', 'networking', 'finances', 'budgeting', 'saving', 'investing', 'organization', 'productivity', 'time-management', 'planning', 'goal-setting', 'habit-building', 'self-discipline', 'motivation', 'confidence', 'self-esteem', 'anxiety', 'depression', 'stress-management', 'anger-management', 'grief', 'trauma', 'healing', 'therapy', 'counseling', 'mental-health', 'physical-health', 'nutrition', 'sleep', 'recovery', 'addiction', 'sobriety', 'boundaries', 'assertiveness', 'conflict-resolution', 'forgiveness', 'letting-go', 'acceptance', 'change', 'transition', 'growth', 'development', 'spirituality', 'faith', 'purpose', 'meaning', 'identity', 'authenticity', 'vulnerability', 'intimacy', 'trust', 'communication', 'listening', 'empathy', 'compassion', 'kindness', 'patience', 'understanding', 'support', 'encouragement']
     }), []);
 
 
 
-    // Pattern-based next word prediction as fallback
+    // Simplified pattern-based next word prediction - focus on most essential patterns only
     const getPatternBasedNextWords = useCallback((text: string): string[] => {
-        const lowercaseText = text.toLowerCase();
-
-        // Common therapeutic sentence completion patterns
+        // Only keep the most fundamental sentence starters and essential connectors
         if (text.endsWith(' I')) {
-            return ['feel', 'am', 'have', 'need', 'want', 'think'];
+            return ['feel', 'am', 'need', 'want'];
         }
         if (text.endsWith(' feel') || text.endsWith(' felt')) {
-            return ['like', 'that', 'so', 'really', 'very', 'quite'];
+            return ['like', 'that', 'really'];
         }
-        if (text.endsWith(' am')) {
-            return ['feeling', 'struggling', 'trying', 'going', 'having', 'experiencing'];
-        }
-        if (text.endsWith(' need')) {
-            return ['to', 'help', 'support', 'someone', 'time', 'space'];
-        }
-        if (text.endsWith(' want')) {
-            return ['to', 'help', 'someone', 'things', 'life', 'change'];
-        }
-        if (text.endsWith(' think')) {
-            return ['about', 'that', 'I', 'maybe', 'sometimes', 'it'];
-        }
-        if (text.endsWith(' have')) {
-            return ['been', 'trouble', 'difficulty', 'problems', 'feelings', 'thoughts'];
-        }
-        if (text.endsWith(' with')) {
-            return ['my', 'this', 'these', 'people', 'family', 'work'];
-        }
-        if (text.endsWith(' my')) {
-            return ['feelings', 'thoughts', 'family', 'relationship', 'work', 'life'];
-        }
-        if (text.endsWith(' to')) {
-            return ['understand', 'feel', 'talk', 'work', 'help', 'change'];
-        }
-        if (text.endsWith(' about')) {
-            return ['my', 'this', 'what', 'how', 'why', 'everything'];
-        }
-        if (text.endsWith(' like')) {
-            return ['I', 'this', 'everything', 'nothing', 'something', 'someone'];
-        }
-        if (text.endsWith(' that')) {
-            return ['I', 'this', 'everything', 'nothing', 'people', 'life'];
-        }
-        if (text.endsWith(' it')) {
-            return ['feels', 'seems', 'makes', 'hurts', 'helps', 'matters'];
+        if (text.endsWith(' need') || text.endsWith(' want')) {
+            return ['to', 'help', 'support'];
         }
 
-        // Context-based suggestions for longer phrases
-        if (/struggling|difficult|hard|tough/.test(lowercaseText)) {
-            return ['with', 'to', 'because', 'and', 'but', 'when'];
-        }
-        if (/feel|feeling|felt|emotional/.test(lowercaseText)) {
-            return ['like', 'that', 'so', 'when', 'because', 'about'];
-        }
-        if (/family|relationship|people|friend/.test(lowercaseText)) {
-            return ['and', 'because', 'when', 'but', 'who', 'that'];
-        }
-        if (/help|support|guidance/.test(lowercaseText)) {
-            return ['me', 'with', 'to', 'because', 'and', 'when'];
-        }
-
-        // Default therapeutic connectors and common next words
-        return ['and', 'but', 'because', 'when', 'that', 'so'];
+        // Default essential connectors only
+        return ['and', 'but', 'because'];
     }, []);
 
-    // Random word generator for more creative suggestions
+    // Expanded therapeutic growth words for psychological/emotional development
     const getRandomWords = useCallback((): string[] => {
-        const randomWords = [
-            // Creative/abstract words
-            'wandering', 'floating', 'dancing', 'singing', 'painting', 'dreaming', 'flowing', 'glowing',
-            // Nature words
-            'ocean', 'mountain', 'forest', 'river', 'sunset', 'moonlight', 'breeze', 'storm',
-            // Feelings/states
-            'curious', 'playful', 'gentle', 'fierce', 'tender', 'bold', 'quiet', 'vibrant',
-            // Actions
-            'exploring', 'creating', 'discovering', 'building', 'nurturing', 'healing', 'growing', 'blooming',
-            // Abstract concepts  
-            'mystery', 'wonder', 'magic', 'journey', 'adventure', 'story', 'chapter', 'beginning',
-            // Colors/textures
-            'golden', 'silver', 'warm', 'cool', 'soft', 'bright', 'deep', 'light'
+        const therapeuticGrowthWords = [
+            // Emotional intelligence & regulation - expanded
+            'mindfulness', 'awareness', 'boundaries', 'patience', 'compassion', 'forgiveness', 'acceptance', 'resilience', 'regulation', 'self-control', 'discipline', 'moderation', 'temperance', 'restraint', 'containment', 'management', 'mastery', 'expertise', 'skill', 'ability', 'capacity', 'capability', 'competence', 'proficiency', 'talent', 'gift', 'strength', 'power', 'force', 'energy', 'vitality', 'vigor', 'intensity', 'passion', 'enthusiasm', 'excitement', 'motivation', 'inspiration', 'aspiration', 'ambition', 'drive', 'determination', 'persistence', 'perseverance', 'tenacity', 'grit', 'resolve', 'commitment', 'dedication', 'devotion',
+
+            // Communication & relationships - expanded
+            'listening', 'vulnerability', 'intimacy', 'trust', 'empathy', 'connection', 'honesty', 'respect', 'openness', 'transparency', 'authenticity', 'sincerity', 'genuineness', 'truthfulness', 'reliability', 'dependability', 'consistency', 'stability', 'security', 'safety', 'protection', 'shelter', 'refuge', 'sanctuary', 'haven', 'comfort', 'solace', 'peace', 'tranquility', 'serenity', 'calmness', 'stillness', 'quietude', 'silence', 'space', 'freedom', 'liberation', 'independence', 'autonomy', 'self-determination', 'choice', 'option', 'alternative', 'possibility', 'opportunity', 'potential', 'promise', 'hope', 'faith', 'belief', 'confidence',
+
+            // Personal development - expanded
+            'confidence', 'courage', 'authenticity', 'self-worth', 'purpose', 'meaning', 'clarity', 'wisdom', 'insight', 'understanding', 'comprehension', 'knowledge', 'education', 'learning', 'growth', 'development', 'evolution', 'transformation', 'metamorphosis', 'change', 'transition', 'shift', 'movement', 'progress', 'advancement', 'improvement', 'enhancement', 'enrichment', 'expansion', 'extension', 'amplification', 'magnification', 'intensification', 'deepening', 'broadening', 'widening', 'stretching', 'reaching', 'striving', 'achieving', 'accomplishing', 'succeeding', 'winning', 'triumph', 'victory', 'conquest', 'mastery', 'excellence', 'perfection',
+
+            // Coping & healing - expanded
+            'therapy', 'meditation', 'journaling', 'breathing', 'grounding', 'processing', 'release', 'recovery', 'healing', 'restoration', 'renewal', 'regeneration', 'rejuvenation', 'revitalization', 'rehabilitation', 'reconstruction', 'rebuilding', 'repair', 'mending', 'fixing', 'solving', 'resolving', 'addressing', 'tackling', 'handling', 'managing', 'coping', 'dealing', 'facing', 'confronting', 'meeting', 'encountering', 'experiencing', 'living', 'existing', 'being', 'becoming', 'emerging', 'arising', 'appearing', 'manifesting', 'expressing', 'showing', 'revealing', 'displaying', 'demonstrating', 'proving', 'establishing', 'creating', 'generating', 'producing',
+
+            // Growth mindset - expanded
+            'learning', 'curiosity', 'flexibility', 'adaptation', 'perseverance', 'progress', 'improvement', 'development', 'exploration', 'discovery', 'investigation', 'research', 'study', 'analysis', 'examination', 'observation', 'experimentation', 'testing', 'trying', 'attempting', 'practicing', 'rehearsing', 'training', 'exercising', 'conditioning', 'preparing', 'planning', 'organizing', 'structuring', 'arranging', 'coordinating', 'managing', 'directing', 'leading', 'guiding', 'mentoring', 'coaching', 'teaching', 'instructing', 'educating', 'informing', 'enlightening', 'illuminating', 'clarifying', 'explaining', 'interpreting', 'translating', 'communicating', 'conveying', 'transmitting',
+
+            // Wellness & balance - expanded
+            'balance', 'harmony', 'peace', 'calm', 'energy', 'vitality', 'rest', 'renewal', 'equilibrium', 'stability', 'steadiness', 'consistency', 'regularity', 'rhythm', 'flow', 'movement', 'circulation', 'distribution', 'allocation', 'division', 'separation', 'distinction', 'differentiation', 'discrimination', 'selection', 'choice', 'decision', 'judgment', 'evaluation', 'assessment', 'appraisal', 'estimation', 'calculation', 'measurement', 'quantification', 'qualification', 'certification', 'validation', 'verification', 'confirmation', 'affirmation', 'endorsement', 'approval', 'acceptance', 'acknowledgment', 'recognition', 'appreciation', 'gratitude', 'thankfulness', 'blessing',
+
+            // Skills & capabilities - expanded
+            'communication', 'leadership', 'creativity', 'problem-solving', 'decision-making', 'time-management', 'organization', 'focus', 'concentration', 'attention', 'mindfulness', 'presence', 'awareness', 'consciousness', 'vigilance', 'alertness', 'responsiveness', 'sensitivity', 'perception', 'intuition', 'instinct', 'gut-feeling', 'sense', 'feeling', 'emotion', 'sentiment', 'mood', 'state', 'condition', 'situation', 'circumstance', 'context', 'environment', 'setting', 'atmosphere', 'climate', 'culture', 'society', 'community', 'group', 'team', 'collective', 'unity', 'solidarity', 'cooperation', 'collaboration', 'partnership', 'alliance', 'union', 'connection', 'relationship', 'bond'
         ];
 
-        // Shuffle and return 2-3 random words
-        const shuffled = randomWords.sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, Math.floor(Math.random() * 2) + 2); // 2-3 words
+        // Shuffle and return 15-25 therapeutic words for maximum variety
+        const shuffled = therapeuticGrowthWords.sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, Math.floor(Math.random() * 11) + 15); // 15-25 words
     }, []);
 
-    // Predict next words using LLM based on therapeutic context
-    const predictNextWords = useCallback(async (text: string, abortSignal?: AbortSignal): Promise<string[]> => {
-        if (!generatorRef.current) return [];
+    // Enhanced contextual words based on semantic meaning rather than rigid patterns
+    const getContextualWords = useCallback((text: string): string[] => {
+        const lowercaseText = text.toLowerCase();
 
-        try {
-            const prompt = `Complete this therapeutic sentence with the most natural next word. Consider the emotional context and therapeutic flow.
-
-Sentence: "${text}"
-
-Provide 10 different natural next words that would therapeutically complete this sentence. Focus on:
-- What would naturally come next in conversation
-- Therapeutic vocabulary that helps expression
-- Emotional continuity and support
-- Common sentence patterns in therapy
-
-Respond with just 10 words separated by commas:`;
-
-            // Check if aborted before starting LLM call
-            if (abortSignal?.aborted) {
-                throw new Error('Prediction aborted');
-            }
-
-            // Add timeout to prevent hanging
-            const timeoutPromise = new Promise<never>((_, reject) => {
-                const timeoutId = setTimeout(() => reject(new Error('Prediction timeout')), 2000);
-                abortSignal?.addEventListener('abort', () => {
-                    clearTimeout(timeoutId);
-                    reject(new Error('Prediction aborted'));
-                });
-            });
-
-            const generator = generatorRef.current as {
-                (prompt: string, options: Record<string, unknown>): Promise<Array<{ generated_text: string }>>;
-                tokenizer?: { eos_token_id: number };
-            };
-
-            const predictionPromise = generator(prompt, {
-                max_new_tokens: 20,
-                temperature: 0.3,
-                do_sample: true,
-                pad_token_id: generator.tokenizer?.eos_token_id,
-            });
-
-            const output = await Promise.race([predictionPromise, timeoutPromise]);
-
-            if (output && output.length > 0 && output[0].generated_text) {
-                const response = output[0].generated_text.replace(prompt, '').trim();
-                const words = response.split(',')
-                    .map((w: string) => w.trim().toLowerCase())
-                    .filter((w: string) => w && /^[a-z]+$/.test(w))
-                    .slice(0, 10);
-
-                if (words.length > 0) {
-                    return words;
-                }
-            }
-        } catch (error) {
-            console.error('LLM next word prediction error:', error);
+        // Emotional context - enhanced
+        if (/feel|emotion|mood|happy|sad|angry|frustrated|anxious|depressed|joyful|peaceful|stressed|worried/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.thoughts,
+                ...THERAPEUTIC_WORD_SETS.adverbs,
+                ...THERAPEUTIC_WORD_SETS.adjectives,
+                ...THERAPEUTIC_WORD_SETS.lifeAreas
+            ];
         }
 
-        return [];
+        // Struggle/challenge context - enhanced
+        if (/struggle|difficult|problem|issue|challenge|hard|tough|overwhelming|stuck|lost|confused|broken|hurt/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.struggles,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.lifeAreas,
+                ...THERAPEUTIC_WORD_SETS.adjectives,
+                ...THERAPEUTIC_WORD_SETS.adverbs
+            ];
+        }
+
+        // Needs/wants context - enhanced
+        if (/need|want|hope|wish|require|seek|desire|long|crave|yearn|miss|deserve/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.needs,
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.lifeAreas,
+                ...THERAPEUTIC_WORD_SETS.adverbs
+            ];
+        }
+
+        // Support context - enhanced
+        if (/help|support|care|love|understand|guidance|comfort|empathy|compassion|validation/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.relationships,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.lifeAreas,
+                ...THERAPEUTIC_WORD_SETS.adverbs
+            ];
+        }
+
+        // Growth/action context - enhanced
+        if (/try|work|practice|learn|grow|change|improve|better|develop|progress|heal|recover|transform/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.thoughts,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.lifeAreas,
+                ...THERAPEUTIC_WORD_SETS.adverbs,
+                ...THERAPEUTIC_WORD_SETS.adjectives
+            ];
+        }
+
+        // Thinking/cognitive context - enhanced  
+        if (/think|believe|know|understand|wonder|question|realize|recognize|remember|consider|reflect/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.thoughts,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.adverbs,
+                ...THERAPEUTIC_WORD_SETS.lifeAreas
+            ];
+        }
+
+        // Relationship context - enhanced
+        if (/family|friend|relationship|people|partner|therapist|parent|child|sibling|colleague|community/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.relationships,
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.thoughts,
+                ...THERAPEUTIC_WORD_SETS.adjectives,
+                ...THERAPEUTIC_WORD_SETS.actions
+            ];
+        }
+
+        // Creative/skill context - enhanced
+        if (/music|art|creative|skill|talent|ability|learn|practice|draw|paint|sing|write|dance|cook|exercise/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.lifeAreas,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.adjectives,
+                ...THERAPEUTIC_WORD_SETS.adverbs,
+                ...THERAPEUTIC_WORD_SETS.support
+            ];
+        }
+
+        // Health/wellness context - enhanced
+        if (/health|mental|physical|wellness|therapy|healing|recovery|meditation|mindfulness|fitness|sleep|nutrition/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.lifeAreas,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.support,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.adjectives,
+                ...THERAPEUTIC_WORD_SETS.adverbs
+            ];
+        }
+
+        // Time/frequency context - enhanced
+        if (/time|today|yesterday|tomorrow|always|never|sometimes|often|recently|currently/.test(lowercaseText)) {
+            return [
+                ...THERAPEUTIC_WORD_SETS.time,
+                ...THERAPEUTIC_WORD_SETS.emotions,
+                ...THERAPEUTIC_WORD_SETS.actions,
+                ...THERAPEUTIC_WORD_SETS.adverbs,
+                ...THERAPEUTIC_WORD_SETS.thoughts
+            ];
+        }
+
+        // Default: ALL therapeutic words from ALL categories for maximum variety
+        return [
+            ...THERAPEUTIC_WORD_SETS.emotions,
+            ...THERAPEUTIC_WORD_SETS.needs,
+            ...THERAPEUTIC_WORD_SETS.actions,
+            ...THERAPEUTIC_WORD_SETS.support,
+            ...THERAPEUTIC_WORD_SETS.thoughts,
+            ...THERAPEUTIC_WORD_SETS.relationships,
+            ...THERAPEUTIC_WORD_SETS.struggles,
+            ...THERAPEUTIC_WORD_SETS.time,
+            ...THERAPEUTIC_WORD_SETS.connectors,
+            ...THERAPEUTIC_WORD_SETS.adverbs,
+            ...THERAPEUTIC_WORD_SETS.adjectives,
+            ...THERAPEUTIC_WORD_SETS.lifeAreas
+        ];
+    }, [THERAPEUTIC_WORD_SETS]);
+
+    // Extract recently used words to filter out only recent duplicates, not entire text history
+    const getUsedWords = useCallback((text: string): Set<string> => {
+        // Split text into words and only consider the last 5 words to avoid over-filtering
+        const allWords = text
+            .toLowerCase()
+            .split(/\s+/)
+            .map(word => word.replace(/[^a-z]/g, '')) // Remove punctuation
+            .filter(word => word.length > 0);
+
+        // Only filter out the last 5 words to allow reuse of earlier words
+        const recentWords = allWords.slice(-5);
+
+        return new Set(recentWords);
     }, []);
 
-    // Smart next-word prediction based on therapeutic context and sentence completion
-    const getContextualWords = useCallback(async (text: string, abortSignal?: AbortSignal): Promise<string[]> => {
-        const trimmedText = text.trim();
-        const lowercaseText = trimmedText.toLowerCase();
-
-        // For "I" or empty, return initial therapeutic starters with more options
-        if (!trimmedText || trimmedText === 'I' || lowercaseText === 'i') {
-            return ['feel', 'am', 'have', 'need', 'want', 'think', 'see', 'know', 'believe', 'hope'];
-        }
-
-        // Analyze intent and predict next logical words
-        try {
-            const nextWords = await predictNextWords(trimmedText, abortSignal);
-            if (nextWords && nextWords.length > 0) {
-                return nextWords;
-            }
-        } catch (error) {
-            console.log('Next word prediction failed, using context patterns:', error);
-        }
-
-        // Fallback to pattern-based next word prediction
-        return getPatternBasedNextWords(trimmedText);
-    }, [predictNextWords, getPatternBasedNextWords]);
-
-    // --- 3. Prediction Logic (Memoized) ---
-    const predictNext = useCallback(async (text: string) => {
-        // If ML model is not available, fall back to pattern-based suggestions
-        if (!generatorRef.current) {
-            console.log('ML model not available, using pattern-based fallback');
-            const trimmedText = text.trim();
-            if (trimmedText.length < 1) {
-                setSuggestions([]);
-                return;
-            }
-
-            // Use pattern-based suggestions as fallback
-            const patternSuggestions = getPatternBasedNextWords(text);
-            const randomWords = getRandomWords();
-            const fallbackSuggestions = [...patternSuggestions, ...randomWords];
-            const uniqueSuggestions = [...new Set(fallbackSuggestions)].slice(0, 10);
-            
-            setSuggestions(uniqueSuggestions);
-            return;
-        }
-
-        // Cancel any ongoing prediction
-        if (abortControllerRef.current) {
-            abortControllerRef.current.abort();
-        }
-
-        // Prevent overlapping predictions
-        if (isPredicting) {
-            console.log('Prediction already in progress, aborting previous...');
-            setIsPredicting(false);
-            setIsGenerating(false);
-        }
-
+    // Main prediction logic
+    const generateSuggestions = useCallback((text: string) => {
         const trimmedText = text.trim();
         if (trimmedText.length < 1) {
             setSuggestions([]);
             return;
         }
 
-        // Create new AbortController for this prediction
-        const abortController = new AbortController();
-        abortControllerRef.current = abortController;
-
-        setIsPredicting(true);
         setIsGenerating(true);
 
-        // Don't clear current suggestions yet - keep them visible during loading
+        // Use a brief delay to show loading state
+        setTimeout(() => {
+            // Get words already used in the text
+            const usedWords = getUsedWords(text);
 
-        try {
-            // Check if aborted before starting
-            if (abortController.signal.aborted) {
-                return;
-            }
+            // Get pattern-based suggestions
+            const patternSuggestions = getPatternBasedNextWords(text);
 
-            // Wrap prediction in timeout to prevent page lockup
-            const predictionTimeout = new Promise<string[]>((_, reject) => {
-                const timeoutId = setTimeout(() => reject(new Error('Prediction timeout')), 1000);
-                abortController.signal.addEventListener('abort', () => {
-                    clearTimeout(timeoutId);
-                    reject(new Error('Prediction aborted'));
-                });
-            });
+            // Get contextual therapeutic words
+            const contextualWords = getContextualWords(text);
 
-            const predictionPromise = getContextualWords(text, abortController.signal);
-
-            const contextualWords = await Promise.race([predictionPromise, predictionTimeout]);
-
-            // Check if aborted after getting results
-            if (abortController.signal.aborted) {
-                return;
-            }
-
-            console.log('Intent-based suggestions:', contextualWords);
-
-            // Check if aborted before processing results
-            if (abortController.signal.aborted) {
-                return;
-            }
-
-            // Add some random creative words to the mix
+            // Add some random creative words
             const randomWords = getRandomWords();
-            const allNewSuggestions = [...contextualWords, ...randomWords];
 
-            // Remove duplicates and limit to 10 new suggestions
-            const uniqueNewSuggestions = [...new Set(allNewSuggestions)].slice(0, 10);
+            // Combine all suggestions - prioritize pattern suggestions first, then contextual, then random
+            const allSuggestions = [...patternSuggestions, ...contextualWords, ...randomWords];
 
-            // Check if aborted before setting state
-            if (abortController.signal.aborted) {
-                return;
-            }
+            // Filter out already used words, remove duplicates, and limit to 15 new suggestions
+            const filteredSuggestions = allSuggestions
+                .filter(word => !usedWords.has(word.toLowerCase()))
+                .filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates
+                .slice(0, 15);
 
-            // Move current suggestions to previous, then set new suggestions
+            // Update suggestions and accumulate previous suggestions properly
             setSuggestions(currentSuggestions => {
-                // Add current suggestions to previous if they exist
-                if (currentSuggestions.length > 0) {
-                    setPreviousSuggestions(prev => {
-                        const combined = [...currentSuggestions, ...prev];
-                        const unique = [...new Set(combined)];
-                        return unique.slice(0, 30);
-                    });
-                }
+                // Immediately update previous suggestions with the current ones
+                setPreviousSuggestions(prevSuggestions => {
+                    // Combine ALL previous suggestions: current suggestions + existing previous suggestions
+                    const allPreviousSuggestions = [...currentSuggestions, ...prevSuggestions];
 
-                // Return empty first, then we'll set the filtered suggestions after
-                return [];
+                    // Filter and clean up previous suggestions - allow overlap with new suggestions for maximum variety
+                    const cleanedPrevious = allPreviousSuggestions
+                        .filter(word => !usedWords.has(word.toLowerCase())) // Remove used words
+                        // Allow overlap with new suggestions since users want maximum choice - visually distinct with different colors
+                        .filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates within previous suggestions
+                        .slice(0, 35); // Keep up to 35 previous suggestions for total of 50 (15 new + 35 previous)
+
+                    // Optional: Log total suggestions for debugging
+                    // console.log('Previous suggestions count:', cleanedPrevious.length, 'Total with new:', filteredSuggestions.length + cleanedPrevious.length);
+                    return cleanedPrevious;
+                });
+
+                // Return the new suggestions
+                return filteredSuggestions;
             });
 
-            // Set new suggestions after moving current to previous
-            setTimeout(() => {
-                // Final abort check before setting results
-                if (abortController.signal.aborted) {
-                    return;
-                }
+            setIsGenerating(false);
+        }, 200);
+    }, [getPatternBasedNextWords, getContextualWords, getRandomWords, getUsedWords]);
 
-                setPreviousSuggestions(prevSuggestions => {
-                    const filteredSuggestions = uniqueNewSuggestions.filter(word => !prevSuggestions.includes(word));
-                    setSuggestions(filteredSuggestions.slice(0, 10));
-                    return prevSuggestions; // Don't change previous suggestions
-                });
-            }, 0);
-        } catch (error) {
-            // Don't show errors for aborted operations
-            if (error instanceof Error && error.message === 'Prediction aborted') {
-                console.log('Prediction was cancelled');
-                return;
-            }
+    // Handle input changes
+    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const newText = e.target.value;
+        setInputText(newText);
 
-            console.error('Error generating predictions:', error);
-
-            // Check if aborted before setting fallback
-            if (abortController.signal.aborted) {
-                return;
-            }
-
-            // Fallback to basic therapeutic words plus random words
-            const fallbackWords = [
-                ...THERAPEUTIC_WORD_SETS.emotions.slice(0, 5),
-                ...THERAPEUTIC_WORD_SETS.connectors.slice(0, 3),
-                ...getRandomWords()
-            ];
-            // Move current suggestions to previous, then set fallback suggestions
-            setSuggestions(currentSuggestions => {
-                // Add current suggestions to previous if they exist
-                if (currentSuggestions.length > 0) {
-                    setPreviousSuggestions(prev => {
-                        const combined = [...currentSuggestions, ...prev];
-                        const unique = [...new Set(combined)];
-                        return unique.slice(0, 30);
-                    });
-                }
-
-                // Return empty first, then we'll set the filtered fallback after
-                return [];
-            });
-
-            // Set fallback suggestions after moving current to previous
-            setTimeout(() => {
-                // Final abort check before setting fallback results
-                if (abortController.signal.aborted) {
-                    return;
-                }
-
-                setPreviousSuggestions(prevSuggestions => {
-                    const filteredFallback = [...new Set(fallbackWords)]
-                        .filter(word => !prevSuggestions.includes(word))
-                        .slice(0, 10);
-                    setSuggestions(filteredFallback);
-                    return prevSuggestions; // Don't change previous suggestions
-                });
-            }, 0);
-        } finally {
-            // Only reset state if this is still the current controller
-            if (abortControllerRef.current === abortController) {
-                setIsPredicting(false);
-                setIsGenerating(false);
-                setIsWaitingForSuggestions(false);
-                abortControllerRef.current = null;
-            }
-        }
-
-    }, [getContextualWords, THERAPEUTIC_WORD_SETS, getRandomWords, isPredicting, getPatternBasedNextWords]); // Dependencies
-
-    // Separate effect to trigger initial predictions when model is loaded
-    useEffect(() => {
-        console.log('Initial predictions effect - loading:', isModelLoading, 'generator:', !!generatorRef.current);
-        if (generatorRef.current && !isModelLoading && !modelError) {
-            console.log('Triggering initial predictions for "I "');
-            // Trigger initial predictions for the default "I " text (with space)
-            setTimeout(() => {
-                console.log('Calling predictNext("I ")');
-                predictNext('I ');
-            }, INITIAL_PREDICTION_DELAY);
-        }
-    }, [isModelLoading, modelError, predictNext]); // Trigger when loading completes
-
-    // --- 3. Input Change Handler (Only predicts after space/word completion) ---
-    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const value = e.target.value;
-        const previousValue = inputText;
-
-        setInputText(value);
-
-        // Handle typing activity for "Take your time..." message
-        setShowTakeYourTime(true);
-
-        // Immediately abort any ongoing prediction
-        if (abortControllerRef.current) {
-            console.log('Aborting prediction due to new input');
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
-        }
-
-        // Clear previous timers and stop any ongoing predictions
+        // Clear existing timers
         if (typingTimerRef.current) {
             clearTimeout(typingTimerRef.current);
         }
-        setIsWaitingForSuggestions(false);
 
-        // Reset prediction state when typing to prevent lockups
-        setIsPredicting(false);
-        setIsGenerating(false);
+        // Show "Take your time..." message if user pauses typing
+        setShowTakeYourTime(false);
+        typingTimerRef.current = setTimeout(() => {
+            setShowTakeYourTime(true);
+            // Hide the message after a bit
+            setTimeout(() => setShowTakeYourTime(false), 3000);
+        }, 2000);
 
-        // Clear suggestions while typing (but don't affect previous suggestions)
-        setSuggestions([]);
-
-        // Only trigger prediction logic if:
-        // 1. A space was just added (word completed)
-        // 2. Or if text ends with space and we're typing after it
-        // 3. Or if we're at the start of input (empty or sentence ending)
-        const justAddedSpace = value.length > previousValue.length && value.endsWith(' ') && !previousValue.endsWith(' ');
-        const isStartingNew = value.trim() === '' || value.match(/[.!?]\s*$/);
-        const shouldPredict = justAddedSpace || isStartingNew;
-
-        if (shouldPredict) {
-            // Set timer for "Take your time..." message (0.75 seconds)
-            // After 0.75 seconds: hide message, start loading predictions
-            typingTimerRef.current = setTimeout(() => {
-                setShowTakeYourTime(false);
-                setIsWaitingForSuggestions(true);
-
-                // Start prediction after showing loading state
-                predictNext(value);
-
-                // Mark that we've had our first interaction
-                if (isFirstRun) {
-                    setIsFirstRun(false);
-                }
-            }, 750);
-        } else {
-            // For non-prediction triggering typing, just hide "Take your time..." after 0.75 seconds
-            typingTimerRef.current = setTimeout(() => {
-                setShowTakeYourTime(false);
-            }, 750);
+        // Generate suggestions when user adds a space (completes a word)
+        if (newText.endsWith(' ') && newText !== ' ') {
+            generateSuggestions(newText);
         }
-    };
+    }, [generateSuggestions]);
 
-    // --- 4. Suggestion Click Handler ---
-    const applySuggestion = useCallback((suggestion: string) => {
-        // Allow suggestions to be clicked even during generation
+    // Handle applying a suggestion
+    const applySuggestion = useCallback((word: string) => {
+        const newText = inputText + (inputText.endsWith(' ') ? word : ' ' + word) + ' ';
+        setInputText(newText);
 
-        // Append the suggestion and a space to the input text
-        setInputText(currentText => {
-            const newText = currentText + (currentText.endsWith(' ') ? '' : ' ') + suggestion + ' ';
+        // Remove the clicked word from current suggestions immediately
+        setSuggestions(current => current.filter(w => w !== word));
 
-            // Move current suggestions to previous and clear current
-            setSuggestions(currentSuggestions => {
-                if (currentSuggestions.length > 0) {
-                    setPreviousSuggestions(prevSuggestions => {
-                        const combined = [...currentSuggestions, ...prevSuggestions];
-                        const unique = [...new Set(combined)];
-                        return unique.slice(0, 30);
-                    });
-                }
-                return []; // Clear current suggestions
-            });
+        // Remove the clicked word from previous suggestions as well
+        setPreviousSuggestions(previous => previous.filter(w => w !== word));
 
-            // Use setTimeout to ensure the state update happens first, then generate new predictions
-            setTimeout(() => {
-                predictNext(newText);
-                // When user clicks a suggestion, they're actively engaging, so reset to immediate mode
-                setIsFirstRun(true);
-            }, 50); // Small delay to ensure clean state
+        // Generate new suggestions based on the updated text
+        generateSuggestions(newText);
+    }, [inputText, generateSuggestions]);
 
-            return newText;
-        });
-    }, [predictNext]);
-
-    // --- 5. Keyboard Navigation Handler ---
+    // Handle keyboard shortcuts
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Tab' && suggestions.length > 0) {
             e.preventDefault();
@@ -623,106 +370,18 @@ Respond with just 10 words separated by commas:`;
         }
     }, [suggestions, applySuggestion]);
 
-    // Show loading state while model is initializing
-    if (isModelLoading) {
-        return (
-            <div className="p-5 w-full max-w-3xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">LLM Text Anticipation Demo</h2>
-                <div className="flex items-center gap-2 mb-4 text-blue-600 dark:text-blue-400">
-                    <div className="w-4 h-4 border-2 border-blue-200 dark:border-blue-600 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
-                    <span className="font-medium">Loading intelligent predictions...</span>
-                </div>
+    // Initialize with suggestions for the default "I " text
+    React.useEffect(() => {
+        if (!hasInitialized) {
+            setHasInitialized(true);
+            generateSuggestions(inputText);
+        }
+    }, [hasInitialized, inputText, generateSuggestions]);
 
-                <div className="relative">
-                    {/* Loading skeleton for textarea */}
-                    <div className="w-full h-24 mb-4 p-3 border border-gray-200 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800 animate-pulse">
-                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/4 mb-2"></div>
-                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/6"></div>
-                    </div>
-                </div>
-
-                <div className="min-h-[80px] flex flex-wrap gap-2">
-                    {/* Loading skeleton for suggestions */}
-                    {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse h-7 w-16"></div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
-
-    // Show degraded state if model failed to load, but still allow pattern-based suggestions
-    if (modelError) {
-        return (
-            <div className="p-5 w-full max-w-3xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">Either type or use the helper bubbles</h2>
-                <div className="flex items-center gap-2 mb-4 text-yellow-600 dark:text-yellow-400">
-                    <div className="w-4 h-4 bg-yellow-600 dark:bg-yellow-400 rounded-full"></div>
-                    <span className="font-medium text-sm">Using basic suggestions (advanced ML predictions unavailable)</span>
-                </div>
-
-                <div className="relative">
-                    <textarea
-                        id="input-text"
-                        rows={4}
-                        value={inputText}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Start typing a sentence..."
-                        className={`w-full text-lg mb-4 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
-                            ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-950'
-                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'
-                            } text-gray-900 dark:text-gray-100`}
-                        aria-label="Text input for therapeutic writing with AI suggestions"
-                    />
-                </div>
-
-                {/* Show suggestion buttons for pattern-based fallback */}
-                <div className="min-h-[80px]">
-                    {showTakeYourTime && (
-                        <div className="mb-3 text-center text-gray-600 dark:text-gray-400 text-sm italic">
-                            Take your time...
-                        </div>
-                    )}
-
-                    {isWaitingForSuggestions ? (
-                        <div className="text-center text-gray-500 dark:text-gray-400 text-sm mb-3">
-                            Thinking...
-                        </div>
-                    ) : null}
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="region" aria-label="Word suggestions">
-                        {suggestions.map((word, index) => (
-                            <button
-                                key={`new-${word}-${index}`}
-                                onClick={() => applySuggestion(word)}
-                                className="px-3 py-2 text-sm font-medium bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors border border-blue-200 dark:border-blue-700"
-                                aria-label={`Add new word: ${word}`}
-                            >
-                                {word}
-                            </button>
-                        ))}
-                        
-                        {previousSuggestions.map((word, index) => (
-                            <button
-                                key={`prev-${word}-${index}`}
-                                onClick={() => applySuggestion(word)}
-                                className="px-3 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700"
-                                aria-label={`Add previous word: ${word}`}
-                            >
-                                {word}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // Normal loaded state (no status message)
     return (
         <div className="p-5 w-full max-w-3xl mx-auto">
             <h2 className="text-xl font-bold mb-4">Either type or use the helper bubbles</h2>
+
             <div className="relative">
                 <textarea
                     id="input-text"
@@ -730,13 +389,12 @@ Respond with just 10 words separated by commas:`;
                     value={inputText}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    disabled={!generatorRef.current}
-                    placeholder={generatorRef.current ? "Start typing a sentence..." : "Waiting for model to load..."}
+                    placeholder="Start typing a sentence..."
                     className={`w-full text-lg mb-4 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
-                        ? 'border-blue-500 dark:border-blue-400 shadow-[0_0_0_1px_rgba(59,130,246,0.3)] dark:shadow-[0_0_0_1px_rgba(96,165,250,0.3)]'
-                        : 'border-blue-600 dark:border-yellow-600'
-                        } ${!generatorRef.current ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    aria-label="Text input for therapeutic writing with AI suggestions"
+                        ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-950'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'
+                        } text-gray-900 dark:text-gray-100`}
+                    aria-label="Text input for therapeutic writing with suggestions"
                     aria-describedby="suggestions-container"
                 />
                 {isGenerating && (
@@ -747,49 +405,56 @@ Respond with just 10 words separated by commas:`;
             </div>
 
             <div id="suggestions-container" className="min-h-[80px] flex flex-wrap gap-2" role="region" aria-label="Word suggestions">
-                {/* Show "Take your time..." message at the beginning when waiting */}
-                {showTakeYourTime && !isWaitingForSuggestions && (
-                    <div className="flex items-center gap-2 px-4 py-3 text-blue-600 dark:text-blue-400 text-base font-medium bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/30" aria-live="polite">
+                {/* Show "Take your time..." message when pausing */}
+                {showTakeYourTime && !isGenerating && (
+                    <div className="flex items-center gap-2 px-4 py-3 text-blue-600 dark:text-blue-400 text-base font-medium bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/30 mb-3 w-full" aria-live="polite">
                         <div className="w-5 h-5 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse mr-1"></div>
                         <span>Take your time...</span>
                     </div>
                 )}
 
-                {/* Show loading skeleton when generating new suggestions */}
-                {(isGenerating || isWaitingForSuggestions) && !showTakeYourTime && (
+                {/* Show loading skeleton when generating suggestions */}
+                {isGenerating && (
                     <>
-                        {/* Loading skeleton for new suggestions */}
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
-                            <div key={i} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse h-7" style={{ width: `${Math.random() * 40 + 60}px` }}></div>
+                        {[70, 85, 95, 75, 100, 80].map((width, index) => (
+                            <div
+                                key={`skeleton-${index}`}
+                                className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"
+                                style={{ width: `${width}px` }}
+                                aria-hidden="true"
+                            />
                         ))}
                     </>
                 )}
 
-                {/* New suggestions with highlighted styling */}
-                {!isGenerating && !isWaitingForSuggestions && !showTakeYourTime && suggestions.filter(s => s !== 'Thinking...').map((suggestion, index) => (
-                    <button
-                        key={`new-${suggestion}-${index}`}
-                        onClick={() => applySuggestion(suggestion)}
-                        disabled={!generatorRef.current}
-                        className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis border-2 bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 hover:-translate-y-0.5 active:translate-y-0 shadow-sm ${!generatorRef.current ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        aria-label={`Add new word: ${suggestion}`}
-                    >
-                        {suggestion}
-                    </button>
-                ))}
+                {/* Show actual suggestions */}
+                {!isGenerating && (
+                    <>
+                        {/* New suggestions */}
+                        {suggestions.map((suggestion, index) => (
+                            <button
+                                key={`new-${suggestion}-${index}`}
+                                onClick={() => applySuggestion(suggestion)}
+                                className="px-3 py-2 text-sm font-medium bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors border border-blue-200 dark:border-blue-700"
+                                aria-label={`Add new word: ${suggestion}`}
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
 
-                {/* Previous suggestions with muted styling - always show when available */}
-                {previousSuggestions.map((suggestion, index) => (
-                    <button
-                        key={`prev-${suggestion}-${index}`}
-                        onClick={() => applySuggestion(suggestion)}
-                        disabled={!generatorRef.current}
-                        className={`inline-flex items-center gap-2 px-2.5 py-1 text-xs font-normal rounded-full transition-all duration-200 whitespace-nowrap max-w-[120px] overflow-hidden text-ellipsis bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 ${!generatorRef.current ? 'opacity-40 cursor-not-allowed' : ''}`}
-                        aria-label={`Add previous word: ${suggestion}`}
-                    >
-                        {suggestion}
-                    </button>
-                ))}
+                        {/* Previous suggestions */}
+                        {previousSuggestions.map((suggestion, index) => (
+                            <button
+                                key={`prev-${suggestion}-${index}`}
+                                onClick={() => applySuggestion(suggestion)}
+                                className="px-3 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700"
+                                aria-label={`Add previous word: ${suggestion}`}
+                            >
+                                {suggestion}
+                            </button>
+                        ))}
+                    </>
+                )}
             </div>
         </div>
     );

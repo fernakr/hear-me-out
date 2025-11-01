@@ -1,24 +1,30 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hear Me Out
+
+A therapeutic Next.js 16 app that guides users through introspective questionnaires to create personalized encouragement messages. The core flow: questionnaire → pattern-based text prediction → message creation → QR code sharing for voice memo requests from trusted contacts.
+
+## Features
+
+- **Therapeutic Questionnaire**: Guided introspective questions to help users reflect
+- **Pattern-Based Text Prediction**: Intelligent word suggestions using therapeutic vocabulary and sentence patterns
+- **Message Creation**: Transform reflections into personalized encouragement messages
+- **QR Code Sharing**: Generate QR codes for trusted contacts to leave voice memos
 
 ## Getting Started
 
-First, run the development server:
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Next.js 16**: Latest version with App Router
+- **Pattern-Based Predictions**: No external ML dependencies - uses curated therapeutic word sets
+- **Client-Side Only**: Fully browser-based with no backend requirements
+- **Therapeutic Focus**: 9 categories of therapeutic vocabulary for intelligent suggestions
 
 ## Learn More
 
