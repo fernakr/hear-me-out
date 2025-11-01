@@ -99,7 +99,7 @@ export default function Questionnaire() {
             <div className="flex justify-between mb-8 gap-3">
 
                 <span><span className="hidden lg:inline">Question </span>{questionIndex + 1} of {questions.length}</span>
-                <StartOverButton />
+                {questionIndex > 0 ? <StartOverButton /> : <a href="/help" className="text-sm underline">Need help figuring out what this is?</a>}
             </div>
 
 

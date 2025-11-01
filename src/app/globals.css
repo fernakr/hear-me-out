@@ -104,3 +104,250 @@ textarea {
     @apply border-yellow-600;
   }
 }
+
+/* Prediction Input Styles */
+.prediction-container {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.status-message {
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.status-message.error {
+  color: #dc2626;
+  /* red-600 */
+}
+
+.status-message.success {
+  color: #16a34a;
+  /* green-600 */
+}
+
+.status-message.loading {
+  color: #6b7280;
+  /* gray-500 */
+}
+
+.prediction-textarea {
+  font-size: 1.2em;
+  margin-bottom: 15px;
+}
+
+.suggestions-container {
+  min-height: 80px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestion-button {
+  display: inline-block;
+  padding: 6px 12px;
+  cursor: pointer;
+  background-color: #f3f4f6;
+  /* gray-100 */
+  border: none;
+  border-radius: 16px;
+  font-size: 0.9em;
+  transition: all 0.2s;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #374151;
+  /* gray-700 */
+}
+
+.suggestion-button:hover:not(:disabled) {
+  background-color: #e5e7eb;
+  /* gray-200 */
+  transform: translateY(-1px);
+}
+
+.suggestion-button.thinking {
+  background-color: #d1d5db;
+  /* gray-300 */
+  cursor: not-allowed;
+}
+
+.suggestion-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Loading States */
+.textarea-wrapper {
+  position: relative;
+}
+
+.textarea-loading-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  pointer-events: none;
+}
+
+.pulse-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #3b82f6;
+  /* blue-500 */
+  animation: pulse 2s infinite;
+}
+
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: #6b7280;
+  /* gray-500 */
+  font-size: 0.9em;
+}
+
+.waiting-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  color: #9ca3af;
+  /* gray-400 */
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  /* gray-200 */
+  border-top: 2px solid #3b82f6;
+  /* blue-500 */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.button-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(0, 0, 0, 0.1);
+  border-top: 1.5px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.pulse-indicator {
+  width: 16px;
+  height: 16px;
+  background: #3b82f6;
+  /* blue-500 */
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+  opacity: 0.6;
+  margin-right: 6px;
+  display: inline-block;
+}
+
+.suggestion-button.loading {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.prediction-textarea.generating {
+  border-color: #3b82f6;
+  /* blue-500 */
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+/* Animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+  .status-message.error {
+    color: #f87171;
+    /* red-400 */
+  }
+
+  .status-message.success {
+    color: #4ade80;
+    /* green-400 */
+  }
+
+  .status-message.loading {
+    color: #9ca3af;
+    /* gray-400 */
+  }
+
+  .suggestion-button {
+    background-color: #374151;
+    /* gray-700 */
+    color: #f9fafb;
+    /* gray-50 */
+  }
+
+  .suggestion-button:hover:not(:disabled) {
+    background-color: #4b5563;
+    /* gray-600 */
+  }
+
+  .suggestion-button.thinking {
+    background-color: #6b7280;
+    /* gray-500 */
+  }
+
+  .pulse-indicator {
+    background-color: #60a5fa;
+    /* blue-400 */
+  }
+
+  .loading-spinner {
+    border-color: #4b5563;
+    /* gray-600 */
+    border-top-color: #60a5fa;
+    /* blue-400 */
+  }
+
+  .loading-indicator {
+    color: #9ca3af;
+    /* gray-400 */
+  }
+
+  .prediction-textarea.generating {
+    border-color: #60a5fa;
+    /* blue-400 */
+    box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3);
+  }
+
+  .button-spinner {
+    border-color: rgba(255, 255, 255, 0.1);
+    border-top-color: currentColor;
+  }
+}
