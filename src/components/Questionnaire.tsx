@@ -12,7 +12,7 @@ export default function Questionnaire() {
     const questions = [
         {
             id: 'internalize',
-            text: 'What is something (belief, thought, behavior) that you have trouble internalizing?',
+            text: 'What is a belief or behavior that you understand in theory but find difficult to truly accept or apply in your life?',
             subtext: 'Could be a big thing, a small thing, or anything in between.'
         },
         {
