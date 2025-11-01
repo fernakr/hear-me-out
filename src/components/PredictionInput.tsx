@@ -7,8 +7,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 const MODEL_NAME = 'Xenova/distilgpt2';
 
 // Constants for better performance
-const PREDICTION_DEBOUNCE_DELAY = 200;
-const SUBSEQUENT_PREDICTION_DELAY = 1000; // 1 second delay for subsequent predictions
+const PREDICTION_DEBOUNCE_DELAY = 200; // ms
+const SUBSEQUENT_PREDICTION_DELAY = 2000; // ms - Increased for better "Take your time..." visibility
 const INITIAL_PREDICTION_DELAY = 100;
 
 // Type for the transformers pipeline
@@ -48,6 +48,11 @@ export default function PredictionInput() {
 
     // Track if we're waiting for the delay to provide suggestions
     const [isWaitingForSuggestions, setIsWaitingForSuggestions] = useState<boolean>(false);
+
+    // Track typing activity for "Take your time..." message
+    const [isTyping, setIsTyping] = useState<boolean>(false);
+    const [showTakeYourTime, setShowTakeYourTime] = useState<boolean>(false);
+    const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // --- 1. Model Loading ---
     useEffect(() => {
@@ -89,6 +94,9 @@ export default function PredictionInput() {
             isMounted = false;
             if (debounceTimerRef.current) {
                 clearTimeout(debounceTimerRef.current);
+            }
+            if (typingTimerRef.current) {
+                clearTimeout(typingTimerRef.current);
             }
         };
     }, []); // Empty dependency array means this runs only once on mount
@@ -273,7 +281,7 @@ Respond with just 6 words separated by commas:`;
         }
 
         setIsGenerating(true);
-        setSuggestions(['Thinking...']); // Temporary state while generating
+        setSuggestions([]); // Clear existing suggestions during loading
 
         try {
             // Use intent-based contextual word selection
@@ -290,6 +298,7 @@ Respond with just 6 words separated by commas:`;
             setSuggestions(fallbackWords);
         } finally {
             setIsGenerating(false);
+            setIsWaitingForSuggestions(false);
         }
 
     }, [getContextualWords, THERAPEUTIC_WORD_SETS]); // Dependencies
@@ -310,20 +319,30 @@ Respond with just 6 words separated by commas:`;
     // --- 3. Input Change Handler (Only predicts after space/word completion) ---
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
-        const previousValue = previousInputRef.current;
+        const previousValue = inputText;
 
         setInputText(value);
 
         // Update the previous value ref
         previousInputRef.current = value;
 
-        // Clear the previous debounce timer and waiting state
+        // Handle typing activity for "Take your time..." message
+        setIsTyping(true);
+        setShowTakeYourTime(true);
+
+        // Clear previous timers
+        if (typingTimerRef.current) {
+            clearTimeout(typingTimerRef.current);
+        }
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
             setIsWaitingForSuggestions(false);
         }
 
-        // Only trigger prediction if:
+        // Clear suggestions while typing
+        setSuggestions([]);
+
+        // Only trigger prediction logic if:
         // 1. A space was just added (word completed)
         // 2. Or if text ends with space and we're typing after it
         // 3. Or if we're at the start of input (empty or sentence ending)
@@ -332,33 +351,32 @@ Respond with just 6 words separated by commas:`;
         const shouldPredict = justAddedSpace || isStartingNew;
 
         if (shouldPredict) {
-            // Use different delays: immediate for first run, longer delay for subsequent runs
-            const delay = isFirstRun ? PREDICTION_DEBOUNCE_DELAY : SUBSEQUENT_PREDICTION_DELAY;
-
-            // Show waiting state for longer delays
-            if (!isFirstRun) {
+            // Set timer for "Take your time..." message (2 seconds)
+            // After 2 seconds: hide message, start loading predictions
+            typingTimerRef.current = setTimeout(() => {
+                setShowTakeYourTime(false);
                 setIsWaitingForSuggestions(true);
-            }
-
-            // Set a timer to call predictNext after appropriate delay
-            debounceTimerRef.current = setTimeout(() => {
-                setIsWaitingForSuggestions(false);
+                
+                // Start prediction after showing loading state
                 predictNext(value);
+                
                 // Mark that we've had our first interaction
                 if (isFirstRun) {
                     setIsFirstRun(false);
                 }
-            }, delay);
+            }, 2000);
         } else {
-            // Clear suggestions if we're in the middle of typing a word
-            setSuggestions([]);
-            setIsWaitingForSuggestions(false);
+            // For non-prediction triggering typing, just hide "Take your time..." after 2 seconds
+            typingTimerRef.current = setTimeout(() => {
+                setShowTakeYourTime(false);
+                setIsTyping(false);
+            }, 2000);
         }
     };
 
     // --- 4. Suggestion Click Handler ---
     const applySuggestion = useCallback((suggestion: string) => {
-        if (suggestion === 'Thinking...' || isGenerating) return;
+        if (isGenerating) return;
 
         // Append the suggestion and a space to the input text
         const newText = inputText + (inputText.endsWith(' ') ? '' : ' ') + suggestion + ' ';
@@ -377,11 +395,11 @@ Respond with just 6 words separated by commas:`;
 
     // --- 5. Keyboard Navigation Handler ---
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Tab' && suggestions.length > 0 && suggestions[0] !== 'Thinking...') {
+        if (e.key === 'Tab' && suggestions.length > 0 && !isGenerating) {
             e.preventDefault();
             applySuggestion(suggestions[0]); // Apply first suggestion on Tab
         }
-    }, [suggestions, applySuggestion]);
+    }, [suggestions, applySuggestion, isGenerating]);
 
     // Show loading state while model is initializing
     if (isModelLoading) {
@@ -472,37 +490,32 @@ Respond with just 6 words separated by commas:`;
             </div>
 
             <div id="suggestions-container" className="min-h-[80px] flex flex-wrap gap-2" role="region" aria-label="Word suggestions">
-                {isGenerating && suggestions.length === 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 text-gray-500 dark:text-gray-400 text-sm" aria-live="polite">
-                        <div className="w-4 h-4 border-2 border-gray-200 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400 rounded-full animate-spin"></div>
-                        <span>Generating suggestions...</span>
-                    </div>
-                )}
-                {isWaitingForSuggestions && !isGenerating && suggestions.length === 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 text-gray-400 dark:text-gray-500 text-sm opacity-80" aria-live="polite">
-                        <div className="w-4 h-4 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse opacity-60 mr-1.5"></div>
+                {showTakeYourTime && suggestions.length === 0 && !isWaitingForSuggestions && (
+                    <div className="flex items-center gap-2 px-4 py-3 text-blue-600 dark:text-blue-400 text-base font-medium bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/30" aria-live="polite">
+                        <div className="w-5 h-5 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse mr-1"></div>
                         <span>Take your time...</span>
                     </div>
                 )}
-                {suggestions.map((suggestion, index) => (
+                {(isGenerating || isWaitingForSuggestions) && suggestions.length === 0 && !showTakeYourTime && (
+                    <>
+                        {/* Loading skeleton for suggestions */}
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                            <div key={i} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse h-7" style={{ width: `${Math.random() * 40 + 60}px` }}></div>
+                        ))}
+                    </>
+                )}
+                {suggestions.filter(s => s !== 'Thinking...').map((suggestion, index) => (
                     <button
                         key={`${suggestion}-${index}`}
                         onClick={() => applySuggestion(suggestion)}
-                        disabled={suggestion === 'Thinking...' || isGenerating}
-                        className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis ${suggestion === 'Thinking...' || isGenerating
+                        disabled={isGenerating}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis ${isGenerating
                             ? 'bg-gray-300 dark:bg-gray-500 text-gray-600 dark:text-gray-300 cursor-not-allowed opacity-70'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-50 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 hover:-translate-y-0.5 active:translate-y-0'
                             } ${!generatorRef.current ? 'opacity-60 cursor-not-allowed' : ''}`}
                         aria-label={`Add word: ${suggestion}`}
                     >
-                        {suggestion === 'Thinking...' ? (
-                            <>
-                                <div className="w-3 h-3 border border-gray-400/20 dark:border-white/10 border-t-current rounded-full animate-spin"></div>
-                                Thinking...
-                            </>
-                        ) : (
-                            suggestion
-                        )}
+                        {suggestion}
                     </button>
                 ))}
             </div>

@@ -115,7 +115,8 @@ const predictNext = useCallback(async (text: string) => {
 - Debounced predictions (200ms) to prevent excessive API calls
 - `useRef` for pipeline persistence across renders
 - Memoized word sets and pattern functions
-- Loading states with "Thinking..." placeholders
+- Skeleton loading templates for smooth UX (6 animated placeholders during prediction)
+- Fast predictions mean skeleton loading rarely visible in practice
 
 **Key Implementation Details**:
 - Space-triggered predictions only (not keystroke-by-keystroke)
