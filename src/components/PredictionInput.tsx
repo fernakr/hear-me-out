@@ -7,23 +7,10 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 const MODEL_NAME = 'Xenova/distilgpt2';
 
 // Constants for better performance
-const PREDICTION_DEBOUNCE_DELAY = 200; // ms
-const SUBSEQUENT_PREDICTION_DELAY = 1000; // ms - Reduced to 1 second for faster suggestions
 const INITIAL_PREDICTION_DELAY = 100;
 
-// Type for the transformers pipeline
-type GenerationOptions = {
-    max_new_tokens?: number;
-    num_return_sequences?: number;
-    do_sample?: boolean;
-    temperature?: number;
-    top_k?: number;
-    top_p?: number;
-};
-
-type TextGenerationPipeline = {
-    (text: string, options?: GenerationOptions): Promise<Array<{ generated_text: string }>>;
-};
+// Type for the transformers pipeline - use unknown to bypass type checking issues
+type TextGenerationPipeline = unknown;
 
 export default function PredictionInput() {
     // State to manage model loading
@@ -41,17 +28,10 @@ export default function PredictionInput() {
     // Use a ref to hold the generator pipeline object so it persists across renders
     const generatorRef = useRef<TextGenerationPipeline | null>(null);
 
-    // Debounce timer ref to limit how often we call the prediction function
-    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Ref to track the previous input value to detect when a space is added
-    const previousInputRef = useRef<string>('');
-
     // Track if we're waiting for the delay to provide suggestions
     const [isWaitingForSuggestions, setIsWaitingForSuggestions] = useState<boolean>(false);
 
     // Track typing activity for "Take your time..." message
-    const [isTyping, setIsTyping] = useState<boolean>(false);
     const [showTakeYourTime, setShowTakeYourTime] = useState<boolean>(false);
     const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -72,10 +52,10 @@ export default function PredictionInput() {
                 if (!isMounted) return;
 
                 // Initialize the pipeline and store it in the ref
-                generatorRef.current = await pipeline('text-generation', MODEL_NAME, {
+                generatorRef.current = (await pipeline('text-generation', MODEL_NAME, {
                     revision: 'main',
                     quantized: true,
-                });
+                })) as TextGenerationPipeline;
 
                 if (!isMounted) return;
                 setIsModelLoading(false);
@@ -93,11 +73,9 @@ export default function PredictionInput() {
         // Cleanup function for the effect
         return () => {
             isMounted = false;
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current);
-            }
-            if (typingTimerRef.current) {
-                clearTimeout(typingTimerRef.current);
+            const typingTimer = typingTimerRef.current;
+            if (typingTimer) {
+                clearTimeout(typingTimer);
             }
         };
     }, []); // Empty dependency array means this runs only once on mount
@@ -218,7 +196,7 @@ export default function PredictionInput() {
             // Colors/textures
             'golden', 'silver', 'warm', 'cool', 'soft', 'bright', 'deep', 'light'
         ];
-        
+
         // Shuffle and return 2-3 random words
         const shuffled = randomWords.sort(() => 0.5 - Math.random());
         return shuffled.slice(0, Math.floor(Math.random() * 2) + 2); // 2-3 words
@@ -241,18 +219,18 @@ Provide 10 different natural next words that would therapeutically complete this
 
 Respond with just 10 words separated by commas:`;
 
-            const output = await generatorRef.current(prompt, {
+            const output = await (generatorRef.current as any)(prompt, {
                 max_new_tokens: 20,
                 temperature: 0.3,
                 do_sample: true,
-                pad_token_id: generatorRef.current.tokenizer.eos_token_id,
+                pad_token_id: (generatorRef.current as any).tokenizer?.eos_token_id,
             });
 
             if (output && output.length > 0 && output[0].generated_text) {
                 const response = output[0].generated_text.replace(prompt, '').trim();
                 const words = response.split(',')
-                    .map(w => w.trim().toLowerCase())
-                    .filter(w => w && /^[a-z]+$/.test(w))
+                    .map((w: string) => w.trim().toLowerCase())
+                    .filter((w: string) => w && /^[a-z]+$/.test(w))
                     .slice(0, 10);
 
                 if (words.length > 0) {
@@ -304,36 +282,38 @@ Respond with just 10 words separated by commas:`;
         }
 
         setIsGenerating(true);
-        
-        // Move current suggestions to previous suggestions and clear current
-        setSuggestions(currentSuggestions => {
-            // Move current suggestions to previous
-            if (currentSuggestions.length > 0) {
-                setPreviousSuggestions(prevSuggestions => {
-                    const combined = [...currentSuggestions, ...prevSuggestions];
-                    const unique = [...new Set(combined)];
-                    return unique.slice(0, 30);
-                });
-            }
-            return []; // Clear current suggestions
-        });
+
+        // Don't clear current suggestions yet - keep them visible during loading
 
         try {
             // Use intent-based contextual word selection
             const contextualWords = await getContextualWords(text);
             console.log('Intent-based suggestions:', contextualWords);
-            
+
             // Add some random creative words to the mix
             const randomWords = getRandomWords();
             const allNewSuggestions = [...contextualWords, ...randomWords];
-            
+
             // Remove duplicates and limit to 10 new suggestions
             const uniqueNewSuggestions = [...new Set(allNewSuggestions)].slice(0, 10);
-            
+
             // Filter against previous suggestions using a callback to get current state
             setPreviousSuggestions(prevSuggestions => {
                 const filteredSuggestions = uniqueNewSuggestions.filter(word => !prevSuggestions.includes(word));
-                setSuggestions(filteredSuggestions.slice(0, 10));
+
+                // Move current suggestions to previous and set new ones
+                setSuggestions(currentSuggestions => {
+                    // Add current suggestions to previous
+                    if (currentSuggestions.length > 0) {
+                        setPreviousSuggestions(prev => {
+                            const combined = [...currentSuggestions, ...prev];
+                            const unique = [...new Set(combined)];
+                            return unique.slice(0, 30);
+                        });
+                    }
+                    return filteredSuggestions.slice(0, 10);
+                });
+
                 return prevSuggestions; // Don't change previous suggestions here
             });
         } catch (error) {
@@ -348,7 +328,20 @@ Respond with just 10 words separated by commas:`;
                 const filteredFallback = [...new Set(fallbackWords)]
                     .filter(word => !prevSuggestions.includes(word))
                     .slice(0, 10);
-                setSuggestions(filteredFallback);
+
+                // Move current suggestions to previous and set fallback ones
+                setSuggestions(currentSuggestions => {
+                    // Add current suggestions to previous
+                    if (currentSuggestions.length > 0) {
+                        setPreviousSuggestions(prev => {
+                            const combined = [...currentSuggestions, ...prev];
+                            const unique = [...new Set(combined)];
+                            return unique.slice(0, 30);
+                        });
+                    }
+                    return filteredFallback;
+                });
+
                 return prevSuggestions; // Don't change previous suggestions here
             });
         } finally {
@@ -378,21 +371,14 @@ Respond with just 10 words separated by commas:`;
 
         setInputText(value);
 
-        // Update the previous value ref
-        previousInputRef.current = value;
-
         // Handle typing activity for "Take your time..." message
-        setIsTyping(true);
         setShowTakeYourTime(true);
 
         // Clear previous timers
         if (typingTimerRef.current) {
             clearTimeout(typingTimerRef.current);
         }
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-            setIsWaitingForSuggestions(false);
-        }
+        setIsWaitingForSuggestions(false);
 
         // Clear suggestions while typing (but don't affect previous suggestions)
         setSuggestions([]);
@@ -406,8 +392,8 @@ Respond with just 10 words separated by commas:`;
         const shouldPredict = justAddedSpace || isStartingNew;
 
         if (shouldPredict) {
-            // Set timer for "Take your time..." message (1 second)
-            // After 1 second: hide message, start loading predictions
+            // Set timer for "Take your time..." message (0.75 seconds)
+            // After 0.75 seconds: hide message, start loading predictions
             typingTimerRef.current = setTimeout(() => {
                 setShowTakeYourTime(false);
                 setIsWaitingForSuggestions(true);
@@ -419,13 +405,12 @@ Respond with just 10 words separated by commas:`;
                 if (isFirstRun) {
                     setIsFirstRun(false);
                 }
-            }, 1000);
+            }, 750);
         } else {
-            // For non-prediction triggering typing, just hide "Take your time..." after 1 second
+            // For non-prediction triggering typing, just hide "Take your time..." after 0.75 seconds
             typingTimerRef.current = setTimeout(() => {
                 setShowTakeYourTime(false);
-                setIsTyping(false);
-            }, 1000);
+            }, 750);
         }
     };
 
@@ -436,7 +421,7 @@ Respond with just 10 words separated by commas:`;
         // Append the suggestion and a space to the input text
         setInputText(currentText => {
             const newText = currentText + (currentText.endsWith(' ') ? '' : ' ') + suggestion + ' ';
-            
+
             // Clear current suggestions and move to previous
             setSuggestions(currentSuggestions => {
                 if (currentSuggestions.length > 0) {
@@ -455,7 +440,7 @@ Respond with just 10 words separated by commas:`;
                 // When user clicks a suggestion, they're actively engaging, so reset to immediate mode
                 setIsFirstRun(true);
             }, 50); // Small delay to ensure clean state
-            
+
             return newText;
         });
     }, [isGenerating, predictNext]);
@@ -557,23 +542,26 @@ Respond with just 10 words separated by commas:`;
             </div>
 
             <div id="suggestions-container" className="min-h-[80px] flex flex-wrap gap-2" role="region" aria-label="Word suggestions">
-                {showTakeYourTime && suggestions.length === 0 && !isWaitingForSuggestions && (
+                {/* Show "Take your time..." message at the beginning when waiting */}
+                {showTakeYourTime && !isWaitingForSuggestions && (
                     <div className="flex items-center gap-2 px-4 py-3 text-blue-600 dark:text-blue-400 text-base font-medium bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800/30" aria-live="polite">
                         <div className="w-5 h-5 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse mr-1"></div>
                         <span>Take your time...</span>
                     </div>
                 )}
-                {(isGenerating || isWaitingForSuggestions) && suggestions.length === 0 && !showTakeYourTime && (
+
+                {/* Show loading skeleton when generating new suggestions */}
+                {(isGenerating || isWaitingForSuggestions) && !showTakeYourTime && (
                     <>
-                        {/* Loading skeleton for suggestions */}
+                        {/* Loading skeleton for new suggestions */}
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
                             <div key={i} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse h-7" style={{ width: `${Math.random() * 40 + 60}px` }}></div>
                         ))}
                     </>
                 )}
-                
+
                 {/* New suggestions with highlighted styling */}
-                {suggestions.filter(s => s !== 'Thinking...').map((suggestion, index) => (
+                {!isGenerating && !isWaitingForSuggestions && !showTakeYourTime && suggestions.filter(s => s !== 'Thinking...').map((suggestion, index) => (
                     <button
                         key={`new-${suggestion}-${index}`}
                         onClick={() => applySuggestion(suggestion)}
@@ -587,8 +575,8 @@ Respond with just 10 words separated by commas:`;
                         {suggestion}
                     </button>
                 ))}
-                
-                {/* Previous suggestions with muted styling */}
+
+                {/* Previous suggestions with muted styling - always show when available */}
                 {previousSuggestions.map((suggestion, index) => (
                     <button
                         key={`prev-${suggestion}-${index}`}
