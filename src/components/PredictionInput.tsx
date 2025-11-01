@@ -48,28 +48,58 @@ export default function PredictionInput() {
         // Dynamic import of the pipeline function
         async function loadPipeline() {
             try {
+                // Check if we're in a browser environment
+                if (typeof window === 'undefined') {
+                    console.warn('Transformers library requires browser environment');
+                    setModelError('ML features require browser environment');
+                    setIsModelLoading(false);
+                    return;
+                }
+
                 // This import ensures the heavy library code only runs in the browser
                 const { pipeline, env } = await import('@xenova/transformers');
 
-                // Configure the environment for browser usage
+                // Configure the environment for browser usage with more permissive settings
                 env.allowRemoteModels = true;
                 env.allowLocalModels = false;
+                
+                // Add better error handling for CORS and network issues
+                env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/';
 
                 if (!isMounted) return;
 
-                // Initialize the pipeline and store it in the ref
+                console.log('Loading ML model for text predictions...');
+                
+                // Initialize the pipeline and store it in the ref with timeout
+                const modelLoadTimeout = setTimeout(() => {
+                    if (isMounted) {
+                        console.error('Model loading timeout');
+                        setModelError('Model loading timeout - using fallback suggestions');
+                        setIsModelLoading(false);
+                    }
+                }, 15000); // 15 second timeout
+
                 generatorRef.current = (await pipeline('text-generation', MODEL_NAME, {
                     revision: 'main',
                     quantized: true,
+                    progress_callback: (progress: any) => {
+                        if (progress && progress.status) {
+                            console.log('Model loading progress:', progress.status);
+                        }
+                    }
                 })) as TextGenerationPipeline;
 
+                clearTimeout(modelLoadTimeout);
+                
                 if (!isMounted) return;
+                console.log('ML model loaded successfully');
                 setIsModelLoading(false);
             } catch (error) {
                 console.error('Error loading model:', error);
                 if (!isMounted) return;
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                setModelError(errorMessage);
+                console.warn('Falling back to pattern-based suggestions due to:', errorMessage);
+                setModelError(`ML model unavailable: ${errorMessage}`);
                 setIsModelLoading(false);
             }
         }
@@ -301,8 +331,22 @@ Respond with just 10 words separated by commas:`;
 
     // --- 3. Prediction Logic (Memoized) ---
     const predictNext = useCallback(async (text: string) => {
+        // If ML model is not available, fall back to pattern-based suggestions
         if (!generatorRef.current) {
-            setSuggestions([]);
+            console.log('ML model not available, using pattern-based fallback');
+            const trimmedText = text.trim();
+            if (trimmedText.length < 1) {
+                setSuggestions([]);
+                return;
+            }
+
+            // Use pattern-based suggestions as fallback
+            const patternSuggestions = getPatternBasedNextWords(text);
+            const randomWords = getRandomWords();
+            const fallbackSuggestions = [...patternSuggestions, ...randomWords];
+            const uniqueSuggestions = [...new Set(fallbackSuggestions)].slice(0, 10);
+            
+            setSuggestions(uniqueSuggestions);
             return;
         }
 
@@ -464,7 +508,7 @@ Respond with just 10 words separated by commas:`;
             }
         }
 
-    }, [getContextualWords, THERAPEUTIC_WORD_SETS, getRandomWords, isPredicting]); // Dependencies
+    }, [getContextualWords, THERAPEUTIC_WORD_SETS, getRandomWords, isPredicting, getPatternBasedNextWords]); // Dependencies
 
     // Separate effect to trigger initial predictions when model is loaded
     useEffect(() => {
@@ -607,14 +651,14 @@ Respond with just 10 words separated by commas:`;
         );
     }
 
-    // Show error state if model failed to load
+    // Show degraded state if model failed to load, but still allow pattern-based suggestions
     if (modelError) {
         return (
             <div className="p-5 w-full max-w-3xl mx-auto">
-                <h2 className="text-xl font-bold mb-4">LLM Text Anticipation Demo</h2>
-                <div className="flex items-center gap-2 mb-4 text-red-600 dark:text-red-400">
-                    <div className="w-4 h-4 bg-red-600 dark:bg-red-400 rounded-full"></div>
-                    <span className="font-medium">Unable to load predictions. Please refresh and try again.</span>
+                <h2 className="text-xl font-bold mb-4">Either type or use the helper bubbles</h2>
+                <div className="flex items-center gap-2 mb-4 text-yellow-600 dark:text-yellow-400">
+                    <div className="w-4 h-4 bg-yellow-600 dark:bg-yellow-400 rounded-full"></div>
+                    <span className="font-medium text-sm">Using basic suggestions (advanced ML predictions unavailable)</span>
                 </div>
 
                 <div className="relative">
@@ -624,16 +668,51 @@ Respond with just 10 words separated by commas:`;
                         value={inputText}
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
-                        disabled={true}
-                        placeholder="Predictions unavailable - please refresh"
-                        className="w-full text-lg mb-4 p-3 border border-red-300 dark:border-red-600 rounded-md resize-y opacity-50 cursor-not-allowed"
-                        aria-label="Text input (predictions unavailable)"
+                        placeholder="Start typing a sentence..."
+                        className={`w-full text-lg mb-4 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
+                            ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-950'
+                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'
+                            } text-gray-900 dark:text-gray-100`}
+                        aria-label="Text input for therapeutic writing with AI suggestions"
                     />
                 </div>
 
-                <div className="min-h-[80px] flex items-center justify-center">
-                    <div className="text-gray-500 dark:text-gray-400 text-sm">
-                        Predictions are temporarily unavailable
+                {/* Show suggestion buttons for pattern-based fallback */}
+                <div className="min-h-[80px]">
+                    {showTakeYourTime && (
+                        <div className="mb-3 text-center text-gray-600 dark:text-gray-400 text-sm italic">
+                            Take your time...
+                        </div>
+                    )}
+
+                    {isWaitingForSuggestions ? (
+                        <div className="text-center text-gray-500 dark:text-gray-400 text-sm mb-3">
+                            Thinking...
+                        </div>
+                    ) : null}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="region" aria-label="Word suggestions">
+                        {suggestions.map((word, index) => (
+                            <button
+                                key={`new-${word}-${index}`}
+                                onClick={() => applySuggestion(word)}
+                                className="px-3 py-2 text-sm font-medium bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors border border-blue-200 dark:border-blue-700"
+                                aria-label={`Add new word: ${word}`}
+                            >
+                                {word}
+                            </button>
+                        ))}
+                        
+                        {previousSuggestions.map((word, index) => (
+                            <button
+                                key={`prev-${word}-${index}`}
+                                onClick={() => applySuggestion(word)}
+                                className="px-3 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700"
+                                aria-label={`Add previous word: ${word}`}
+                            >
+                                {word}
+                            </button>
+                        ))}
                     </div>
                 </div>
             </div>
