@@ -35,6 +35,12 @@ export default function PredictionInput() {
     const [showTakeYourTime, setShowTakeYourTime] = useState<boolean>(false);
     const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Flag to prevent overlapping predictions
+    const [isPredicting, setIsPredicting] = useState<boolean>(false);
+
+    // AbortController for cancelling predictions
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     // --- 1. Model Loading ---
     useEffect(() => {
         let isMounted = true;
@@ -76,6 +82,10 @@ export default function PredictionInput() {
             const typingTimer = typingTimerRef.current;
             if (typingTimer) {
                 clearTimeout(typingTimer);
+            }
+            // Cancel any ongoing predictions on unmount
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
             }
         };
     }, []); // Empty dependency array means this runs only once on mount
@@ -203,7 +213,7 @@ export default function PredictionInput() {
     }, []);
 
     // Predict next words using LLM based on therapeutic context
-    const predictNextWords = useCallback(async (text: string): Promise<string[]> => {
+    const predictNextWords = useCallback(async (text: string, abortSignal?: AbortSignal): Promise<string[]> => {
         if (!generatorRef.current) return [];
 
         try {
@@ -219,12 +229,33 @@ Provide 10 different natural next words that would therapeutically complete this
 
 Respond with just 10 words separated by commas:`;
 
-            const output = await (generatorRef.current as any)(prompt, {
+            // Check if aborted before starting LLM call
+            if (abortSignal?.aborted) {
+                throw new Error('Prediction aborted');
+            }
+
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                const timeoutId = setTimeout(() => reject(new Error('Prediction timeout')), 2000);
+                abortSignal?.addEventListener('abort', () => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('Prediction aborted'));
+                });
+            });
+
+            const generator = generatorRef.current as {
+                (prompt: string, options: Record<string, unknown>): Promise<Array<{ generated_text: string }>>;
+                tokenizer?: { eos_token_id: number };
+            };
+
+            const predictionPromise = generator(prompt, {
                 max_new_tokens: 20,
                 temperature: 0.3,
                 do_sample: true,
-                pad_token_id: (generatorRef.current as any).tokenizer?.eos_token_id,
+                pad_token_id: generator.tokenizer?.eos_token_id,
             });
+
+            const output = await Promise.race([predictionPromise, timeoutPromise]);
 
             if (output && output.length > 0 && output[0].generated_text) {
                 const response = output[0].generated_text.replace(prompt, '').trim();
@@ -245,7 +276,7 @@ Respond with just 10 words separated by commas:`;
     }, []);
 
     // Smart next-word prediction based on therapeutic context and sentence completion
-    const getContextualWords = useCallback(async (text: string): Promise<string[]> => {
+    const getContextualWords = useCallback(async (text: string, abortSignal?: AbortSignal): Promise<string[]> => {
         const trimmedText = text.trim();
         const lowercaseText = trimmedText.toLowerCase();
 
@@ -256,7 +287,7 @@ Respond with just 10 words separated by commas:`;
 
         // Analyze intent and predict next logical words
         try {
-            const nextWords = await predictNextWords(trimmedText);
+            const nextWords = await predictNextWords(trimmedText, abortSignal);
             if (nextWords && nextWords.length > 0) {
                 return nextWords;
             }
@@ -275,20 +306,63 @@ Respond with just 10 words separated by commas:`;
             return;
         }
 
+        // Cancel any ongoing prediction
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        // Prevent overlapping predictions
+        if (isPredicting) {
+            console.log('Prediction already in progress, aborting previous...');
+            setIsPredicting(false);
+            setIsGenerating(false);
+        }
+
         const trimmedText = text.trim();
         if (trimmedText.length < 1) {
             setSuggestions([]);
             return;
         }
 
+        // Create new AbortController for this prediction
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
+        setIsPredicting(true);
         setIsGenerating(true);
 
         // Don't clear current suggestions yet - keep them visible during loading
 
         try {
-            // Use intent-based contextual word selection
-            const contextualWords = await getContextualWords(text);
+            // Check if aborted before starting
+            if (abortController.signal.aborted) {
+                return;
+            }
+
+            // Wrap prediction in timeout to prevent page lockup
+            const predictionTimeout = new Promise<string[]>((_, reject) => {
+                const timeoutId = setTimeout(() => reject(new Error('Prediction timeout')), 1000);
+                abortController.signal.addEventListener('abort', () => {
+                    clearTimeout(timeoutId);
+                    reject(new Error('Prediction aborted'));
+                });
+            });
+
+            const predictionPromise = getContextualWords(text, abortController.signal);
+
+            const contextualWords = await Promise.race([predictionPromise, predictionTimeout]);
+
+            // Check if aborted after getting results
+            if (abortController.signal.aborted) {
+                return;
+            }
+
             console.log('Intent-based suggestions:', contextualWords);
+
+            // Check if aborted before processing results
+            if (abortController.signal.aborted) {
+                return;
+            }
 
             // Add some random creative words to the mix
             const randomWords = getRandomWords();
@@ -297,59 +371,100 @@ Respond with just 10 words separated by commas:`;
             // Remove duplicates and limit to 10 new suggestions
             const uniqueNewSuggestions = [...new Set(allNewSuggestions)].slice(0, 10);
 
-            // Filter against previous suggestions using a callback to get current state
-            setPreviousSuggestions(prevSuggestions => {
-                const filteredSuggestions = uniqueNewSuggestions.filter(word => !prevSuggestions.includes(word));
+            // Check if aborted before setting state
+            if (abortController.signal.aborted) {
+                return;
+            }
 
-                // Move current suggestions to previous and set new ones
-                setSuggestions(currentSuggestions => {
-                    // Add current suggestions to previous
-                    if (currentSuggestions.length > 0) {
-                        setPreviousSuggestions(prev => {
-                            const combined = [...currentSuggestions, ...prev];
-                            const unique = [...new Set(combined)];
-                            return unique.slice(0, 30);
-                        });
-                    }
-                    return filteredSuggestions.slice(0, 10);
-                });
+            // Move current suggestions to previous, then set new suggestions
+            setSuggestions(currentSuggestions => {
+                // Add current suggestions to previous if they exist
+                if (currentSuggestions.length > 0) {
+                    setPreviousSuggestions(prev => {
+                        const combined = [...currentSuggestions, ...prev];
+                        const unique = [...new Set(combined)];
+                        return unique.slice(0, 30);
+                    });
+                }
 
-                return prevSuggestions; // Don't change previous suggestions here
+                // Return empty first, then we'll set the filtered suggestions after
+                return [];
             });
+
+            // Set new suggestions after moving current to previous
+            setTimeout(() => {
+                // Final abort check before setting results
+                if (abortController.signal.aborted) {
+                    return;
+                }
+
+                setPreviousSuggestions(prevSuggestions => {
+                    const filteredSuggestions = uniqueNewSuggestions.filter(word => !prevSuggestions.includes(word));
+                    setSuggestions(filteredSuggestions.slice(0, 10));
+                    return prevSuggestions; // Don't change previous suggestions
+                });
+            }, 0);
         } catch (error) {
+            // Don't show errors for aborted operations
+            if (error instanceof Error && error.message === 'Prediction aborted') {
+                console.log('Prediction was cancelled');
+                return;
+            }
+
             console.error('Error generating predictions:', error);
+
+            // Check if aborted before setting fallback
+            if (abortController.signal.aborted) {
+                return;
+            }
+
             // Fallback to basic therapeutic words plus random words
             const fallbackWords = [
                 ...THERAPEUTIC_WORD_SETS.emotions.slice(0, 5),
                 ...THERAPEUTIC_WORD_SETS.connectors.slice(0, 3),
                 ...getRandomWords()
             ];
-            setPreviousSuggestions(prevSuggestions => {
-                const filteredFallback = [...new Set(fallbackWords)]
-                    .filter(word => !prevSuggestions.includes(word))
-                    .slice(0, 10);
+            // Move current suggestions to previous, then set fallback suggestions
+            setSuggestions(currentSuggestions => {
+                // Add current suggestions to previous if they exist
+                if (currentSuggestions.length > 0) {
+                    setPreviousSuggestions(prev => {
+                        const combined = [...currentSuggestions, ...prev];
+                        const unique = [...new Set(combined)];
+                        return unique.slice(0, 30);
+                    });
+                }
 
-                // Move current suggestions to previous and set fallback ones
-                setSuggestions(currentSuggestions => {
-                    // Add current suggestions to previous
-                    if (currentSuggestions.length > 0) {
-                        setPreviousSuggestions(prev => {
-                            const combined = [...currentSuggestions, ...prev];
-                            const unique = [...new Set(combined)];
-                            return unique.slice(0, 30);
-                        });
-                    }
-                    return filteredFallback;
-                });
-
-                return prevSuggestions; // Don't change previous suggestions here
+                // Return empty first, then we'll set the filtered fallback after
+                return [];
             });
+
+            // Set fallback suggestions after moving current to previous
+            setTimeout(() => {
+                // Final abort check before setting fallback results
+                if (abortController.signal.aborted) {
+                    return;
+                }
+
+                setPreviousSuggestions(prevSuggestions => {
+                    const filteredFallback = [...new Set(fallbackWords)]
+                        .filter(word => !prevSuggestions.includes(word))
+                        .slice(0, 10);
+                    setSuggestions(filteredFallback);
+                    return prevSuggestions; // Don't change previous suggestions
+                });
+            }, 0);
         } finally {
-            setIsGenerating(false);
-            setIsWaitingForSuggestions(false);
+            // Only reset state if this is still the current controller
+            if (abortControllerRef.current === abortController) {
+                setIsPredicting(false);
+                setIsGenerating(false);
+                setIsWaitingForSuggestions(false);
+                abortControllerRef.current = null;
+            }
         }
 
-    }, [getContextualWords, THERAPEUTIC_WORD_SETS, getRandomWords]); // Dependencies
+    }, [getContextualWords, THERAPEUTIC_WORD_SETS, getRandomWords, isPredicting]); // Dependencies
 
     // Separate effect to trigger initial predictions when model is loaded
     useEffect(() => {
@@ -374,11 +489,22 @@ Respond with just 10 words separated by commas:`;
         // Handle typing activity for "Take your time..." message
         setShowTakeYourTime(true);
 
-        // Clear previous timers
+        // Immediately abort any ongoing prediction
+        if (abortControllerRef.current) {
+            console.log('Aborting prediction due to new input');
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+
+        // Clear previous timers and stop any ongoing predictions
         if (typingTimerRef.current) {
             clearTimeout(typingTimerRef.current);
         }
         setIsWaitingForSuggestions(false);
+
+        // Reset prediction state when typing to prevent lockups
+        setIsPredicting(false);
+        setIsGenerating(false);
 
         // Clear suggestions while typing (but don't affect previous suggestions)
         setSuggestions([]);
@@ -416,13 +542,13 @@ Respond with just 10 words separated by commas:`;
 
     // --- 4. Suggestion Click Handler ---
     const applySuggestion = useCallback((suggestion: string) => {
-        if (isGenerating) return;
+        // Allow suggestions to be clicked even during generation
 
         // Append the suggestion and a space to the input text
         setInputText(currentText => {
             const newText = currentText + (currentText.endsWith(' ') ? '' : ' ') + suggestion + ' ';
 
-            // Clear current suggestions and move to previous
+            // Move current suggestions to previous and clear current
             setSuggestions(currentSuggestions => {
                 if (currentSuggestions.length > 0) {
                     setPreviousSuggestions(prevSuggestions => {
@@ -443,15 +569,15 @@ Respond with just 10 words separated by commas:`;
 
             return newText;
         });
-    }, [isGenerating, predictNext]);
+    }, [predictNext]);
 
     // --- 5. Keyboard Navigation Handler ---
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Tab' && suggestions.length > 0 && !isGenerating) {
+        if (e.key === 'Tab' && suggestions.length > 0) {
             e.preventDefault();
             applySuggestion(suggestions[0]); // Apply first suggestion on Tab
         }
-    }, [suggestions, applySuggestion, isGenerating]);
+    }, [suggestions, applySuggestion]);
 
     // Show loading state while model is initializing
     if (isModelLoading) {
@@ -565,11 +691,8 @@ Respond with just 10 words separated by commas:`;
                     <button
                         key={`new-${suggestion}-${index}`}
                         onClick={() => applySuggestion(suggestion)}
-                        disabled={isGenerating}
-                        className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis border-2 ${isGenerating
-                            ? 'bg-blue-200 dark:bg-blue-800 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-300 cursor-not-allowed opacity-70'
-                            : 'bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 hover:-translate-y-0.5 active:translate-y-0 shadow-sm'
-                            } ${!generatorRef.current ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        disabled={!generatorRef.current}
+                        className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis border-2 bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 hover:-translate-y-0.5 active:translate-y-0 shadow-sm ${!generatorRef.current ? 'opacity-60 cursor-not-allowed' : ''}`}
                         aria-label={`Add new word: ${suggestion}`}
                     >
                         {suggestion}
@@ -581,11 +704,8 @@ Respond with just 10 words separated by commas:`;
                     <button
                         key={`prev-${suggestion}-${index}`}
                         onClick={() => applySuggestion(suggestion)}
-                        disabled={isGenerating}
-                        className={`inline-flex items-center gap-2 px-2.5 py-1 text-xs font-normal rounded-full transition-all duration-200 whitespace-nowrap max-w-[120px] overflow-hidden text-ellipsis ${isGenerating
-                            ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-50'
-                            : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300'
-                            } ${!generatorRef.current ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        disabled={!generatorRef.current}
+                        className={`inline-flex items-center gap-2 px-2.5 py-1 text-xs font-normal rounded-full transition-all duration-200 whitespace-nowrap max-w-[120px] overflow-hidden text-ellipsis bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 ${!generatorRef.current ? 'opacity-40 cursor-not-allowed' : ''}`}
                         aria-label={`Add previous word: ${suggestion}`}
                     >
                         {suggestion}
