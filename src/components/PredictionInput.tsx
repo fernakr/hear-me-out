@@ -26,8 +26,9 @@ type TextGenerationPipeline = {
 };
 
 export default function PredictionInput() {
-    // State to manage model loading status
-    const [status, setStatus] = useState<string>('Loading model (initial download required)...');
+    // State to manage model loading
+    const [isModelLoading, setIsModelLoading] = useState<boolean>(true);
+    const [modelError, setModelError] = useState<string | null>(null);
     // State for the user's input text - start with "I " by default
     const [inputText, setInputText] = useState<string>('I ');
     // State for the generated suggestions
@@ -63,7 +64,6 @@ export default function PredictionInput() {
                 env.allowLocalModels = false;
 
                 if (!isMounted) return;
-                setStatus('Downloading model, please wait...');
 
                 // Initialize the pipeline and store it in the ref
                 generatorRef.current = await pipeline('text-generation', MODEL_NAME, {
@@ -72,12 +72,13 @@ export default function PredictionInput() {
                 });
 
                 if (!isMounted) return;
-                setStatus('Model loaded successfully!');
+                setIsModelLoading(false);
             } catch (error) {
                 console.error('Error loading model:', error);
                 if (!isMounted) return;
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-                setStatus(`Error loading model: ${errorMessage}. Try refreshing the page.`);
+                setModelError(errorMessage);
+                setIsModelLoading(false);
             }
         }
 
@@ -129,7 +130,7 @@ export default function PredictionInput() {
     // Pattern-based next word prediction as fallback
     const getPatternBasedNextWords = useCallback((text: string): string[] => {
         const lowercaseText = text.toLowerCase();
-        
+
         // Common therapeutic sentence completion patterns
         if (text.endsWith(' I')) {
             return ['feel', 'am', 'have', 'need', 'want', 'think'];
@@ -295,8 +296,8 @@ Respond with just 6 words separated by commas:`;
 
     // Separate effect to trigger initial predictions when model is loaded
     useEffect(() => {
-        console.log('Initial predictions effect - status:', status, 'generator:', !!generatorRef.current);
-        if (generatorRef.current && status.includes('loaded')) {
+        console.log('Initial predictions effect - loading:', isModelLoading, 'generator:', !!generatorRef.current);
+        if (generatorRef.current && !isModelLoading && !modelError) {
             console.log('Triggering initial predictions for "I "');
             // Trigger initial predictions for the default "I " text (with space)
             setTimeout(() => {
@@ -304,7 +305,7 @@ Respond with just 6 words separated by commas:`;
                 predictNext('I ');
             }, INITIAL_PREDICTION_DELAY);
         }
-    }, [status, predictNext]); // Trigger when status changes to loaded
+    }, [isModelLoading, modelError, predictNext]); // Trigger when loading completes
 
     // --- 3. Input Change Handler (Only predicts after space/word completion) ---
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -382,14 +383,72 @@ Respond with just 6 words separated by commas:`;
         }
     }, [suggestions, applySuggestion]);
 
-    return (
-        <div className="prediction-container">
-            <h2>LLM Text Anticipation Demo</h2>
-            <p className={`status-message ${status.includes('Error') ? 'error' : status.includes('loaded') ? 'success' : 'loading'}`}>
-                {isGenerating && status.includes('loaded') ? 'Generating suggestions...' : status}
-            </p>
+    // Show loading state while model is initializing
+    if (isModelLoading) {
+        return (
+            <div className="p-5 w-full max-w-3xl mx-auto">
+                <h2 className="text-xl font-bold mb-4">LLM Text Anticipation Demo</h2>
+                <div className="flex items-center gap-2 mb-4 text-blue-600 dark:text-blue-400">
+                    <div className="w-4 h-4 border-2 border-blue-200 dark:border-blue-600 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+                    <span className="font-medium">Loading intelligent predictions...</span>
+                </div>
 
-            <div className="textarea-wrapper">
+                <div className="relative">
+                    {/* Loading skeleton for textarea */}
+                    <div className="w-full h-24 mb-4 p-3 border border-gray-200 dark:border-gray-600 rounded-md bg-gray-50 dark:bg-gray-800 animate-pulse">
+                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/4 mb-2"></div>
+                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/6"></div>
+                    </div>
+                </div>
+
+                <div className="min-h-[80px] flex flex-wrap gap-2">
+                    {/* Loading skeleton for suggestions */}
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse h-7 w-16"></div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    // Show error state if model failed to load
+    if (modelError) {
+        return (
+            <div className="p-5 w-full max-w-3xl mx-auto">
+                <h2 className="text-xl font-bold mb-4">LLM Text Anticipation Demo</h2>
+                <div className="flex items-center gap-2 mb-4 text-red-600 dark:text-red-400">
+                    <div className="w-4 h-4 bg-red-600 dark:bg-red-400 rounded-full"></div>
+                    <span className="font-medium">Unable to load predictions. Please refresh and try again.</span>
+                </div>
+
+                <div className="relative">
+                    <textarea
+                        id="input-text"
+                        rows={4}
+                        value={inputText}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        disabled={true}
+                        placeholder="Predictions unavailable - please refresh"
+                        className="w-full text-lg mb-4 p-3 border border-red-300 dark:border-red-600 rounded-md resize-y opacity-50 cursor-not-allowed"
+                        aria-label="Text input (predictions unavailable)"
+                    />
+                </div>
+
+                <div className="min-h-[80px] flex items-center justify-center">
+                    <div className="text-gray-500 dark:text-gray-400 text-sm">
+                        Predictions are temporarily unavailable
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Normal loaded state (no status message)
+    return (
+        <div className="p-5 w-full max-w-3xl mx-auto">
+            <h2 className="text-xl font-bold mb-4">Either type or use the helper bubbles</h2>
+            <div className="relative">
                 <textarea
                     id="input-text"
                     rows={4}
@@ -398,41 +457,47 @@ Respond with just 6 words separated by commas:`;
                     onKeyDown={handleKeyDown}
                     disabled={!generatorRef.current}
                     placeholder={generatorRef.current ? "Start typing a sentence..." : "Waiting for model to load..."}
-                    className={`prediction-textarea w-full ${isGenerating ? 'generating' : ''}`}
+                    className={`w-full text-lg mb-4 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
+                        ? 'border-blue-500 dark:border-blue-400 shadow-[0_0_0_1px_rgba(59,130,246,0.3)] dark:shadow-[0_0_0_1px_rgba(96,165,250,0.3)]'
+                        : 'border-blue-600 dark:border-yellow-600'
+                        } ${!generatorRef.current ? 'opacity-50 cursor-not-allowed' : ''}`}
                     aria-label="Text input for therapeutic writing with AI suggestions"
                     aria-describedby="suggestions-container"
                 />
                 {isGenerating && (
-                    <div className="textarea-loading-overlay" aria-hidden="true">
-                        <div className="pulse-indicator"></div>
+                    <div className="absolute top-2 right-2 pointer-events-none" aria-hidden="true">
+                        <div className="w-3 h-3 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse opacity-60"></div>
                     </div>
                 )}
             </div>
 
-            <div id="suggestions-container" className="suggestions-container" role="region" aria-label="Word suggestions">
+            <div id="suggestions-container" className="min-h-[80px] flex flex-wrap gap-2" role="region" aria-label="Word suggestions">
                 {isGenerating && suggestions.length === 0 && (
-                    <div className="loading-indicator" aria-live="polite">
-                        <div className="loading-spinner"></div>
+                    <div className="flex items-center gap-2 px-4 py-2 text-gray-500 dark:text-gray-400 text-sm" aria-live="polite">
+                        <div className="w-4 h-4 border-2 border-gray-200 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400 rounded-full animate-spin"></div>
                         <span>Generating suggestions...</span>
                     </div>
                 )}
                 {isWaitingForSuggestions && !isGenerating && suggestions.length === 0 && (
-                    <div className="waiting-indicator" aria-live="polite">
-                        <div className="pulse-indicator"></div>
+                    <div className="flex items-center gap-2 px-4 py-2 text-gray-400 dark:text-gray-500 text-sm opacity-80" aria-live="polite">
+                        <div className="w-4 h-4 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse opacity-60 mr-1.5"></div>
                         <span>Take your time...</span>
                     </div>
                 )}
                 {suggestions.map((suggestion, index) => (
                     <button
-                        key={`${suggestion}-${index}`} // More stable key
+                        key={`${suggestion}-${index}`}
                         onClick={() => applySuggestion(suggestion)}
                         disabled={suggestion === 'Thinking...' || isGenerating}
-                        className={`suggestion-button ${suggestion === 'Thinking...' || isGenerating ? 'loading' : ''}`}
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis ${suggestion === 'Thinking...' || isGenerating
+                            ? 'bg-gray-300 dark:bg-gray-500 text-gray-600 dark:text-gray-300 cursor-not-allowed opacity-70'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-50 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 hover:-translate-y-0.5 active:translate-y-0'
+                            } ${!generatorRef.current ? 'opacity-60 cursor-not-allowed' : ''}`}
                         aria-label={`Add word: ${suggestion}`}
                     >
                         {suggestion === 'Thinking...' ? (
                             <>
-                                <div className="button-spinner"></div>
+                                <div className="w-3 h-3 border border-gray-400/20 dark:border-white/10 border-t-current rounded-full animate-spin"></div>
                                 Thinking...
                             </>
                         ) : (

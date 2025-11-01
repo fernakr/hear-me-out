@@ -2,7 +2,7 @@ import PredictionInput from '@/components/PredictionInput';
 
 export default function Help() {
     return (
-        <main>
+        <main className="full">
             <PredictionInput />
         </main>
     );
