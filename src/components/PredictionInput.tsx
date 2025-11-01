@@ -8,7 +8,7 @@ const MODEL_NAME = 'Xenova/distilgpt2';
 
 // Constants for better performance
 const PREDICTION_DEBOUNCE_DELAY = 200; // ms
-const SUBSEQUENT_PREDICTION_DELAY = 2000; // ms - Increased for better "Take your time..." visibility
+const SUBSEQUENT_PREDICTION_DELAY = 1000; // ms - Reduced to 1 second for faster suggestions
 const INITIAL_PREDICTION_DELAY = 100;
 
 // Type for the transformers pipeline
@@ -31,8 +31,9 @@ export default function PredictionInput() {
     const [modelError, setModelError] = useState<string | null>(null);
     // State for the user's input text - start with "I " by default
     const [inputText, setInputText] = useState<string>('I ');
-    // State for the generated suggestions
+    // State for the generated suggestions - now with separation between new and previous
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [previousSuggestions, setPreviousSuggestions] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     // Track if this is the first interaction (for immediate suggestions)
     const [isFirstRun, setIsFirstRun] = useState<boolean>(true);
@@ -201,6 +202,28 @@ export default function PredictionInput() {
         return ['and', 'but', 'because', 'when', 'that', 'so'];
     }, []);
 
+    // Random word generator for more creative suggestions
+    const getRandomWords = useCallback((): string[] => {
+        const randomWords = [
+            // Creative/abstract words
+            'wandering', 'floating', 'dancing', 'singing', 'painting', 'dreaming', 'flowing', 'glowing',
+            // Nature words
+            'ocean', 'mountain', 'forest', 'river', 'sunset', 'moonlight', 'breeze', 'storm',
+            // Feelings/states
+            'curious', 'playful', 'gentle', 'fierce', 'tender', 'bold', 'quiet', 'vibrant',
+            // Actions
+            'exploring', 'creating', 'discovering', 'building', 'nurturing', 'healing', 'growing', 'blooming',
+            // Abstract concepts  
+            'mystery', 'wonder', 'magic', 'journey', 'adventure', 'story', 'chapter', 'beginning',
+            // Colors/textures
+            'golden', 'silver', 'warm', 'cool', 'soft', 'bright', 'deep', 'light'
+        ];
+        
+        // Shuffle and return 2-3 random words
+        const shuffled = randomWords.sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, Math.floor(Math.random() * 2) + 2); // 2-3 words
+    }, []);
+
     // Predict next words using LLM based on therapeutic context
     const predictNextWords = useCallback(async (text: string): Promise<string[]> => {
         if (!generatorRef.current) return [];
@@ -210,13 +233,13 @@ export default function PredictionInput() {
 
 Sentence: "${text}"
 
-Provide 6 different natural next words that would therapeutically complete this sentence. Focus on:
+Provide 10 different natural next words that would therapeutically complete this sentence. Focus on:
 - What would naturally come next in conversation
 - Therapeutic vocabulary that helps expression
 - Emotional continuity and support
 - Common sentence patterns in therapy
 
-Respond with just 6 words separated by commas:`;
+Respond with just 10 words separated by commas:`;
 
             const output = await generatorRef.current(prompt, {
                 max_new_tokens: 20,
@@ -230,7 +253,7 @@ Respond with just 6 words separated by commas:`;
                 const words = response.split(',')
                     .map(w => w.trim().toLowerCase())
                     .filter(w => w && /^[a-z]+$/.test(w))
-                    .slice(0, 6);
+                    .slice(0, 10);
 
                 if (words.length > 0) {
                     return words;
@@ -248,9 +271,9 @@ Respond with just 6 words separated by commas:`;
         const trimmedText = text.trim();
         const lowercaseText = trimmedText.toLowerCase();
 
-        // For "I" or empty, return initial therapeutic starters
+        // For "I" or empty, return initial therapeutic starters with more options
         if (!trimmedText || trimmedText === 'I' || lowercaseText === 'i') {
-            return ['feel', 'am', 'have', 'need', 'want', 'think'];
+            return ['feel', 'am', 'have', 'need', 'want', 'think', 'see', 'know', 'believe', 'hope'];
         }
 
         // Analyze intent and predict next logical words
@@ -281,27 +304,59 @@ Respond with just 6 words separated by commas:`;
         }
 
         setIsGenerating(true);
-        setSuggestions([]); // Clear existing suggestions during loading
+        
+        // Move current suggestions to previous suggestions and clear current
+        setSuggestions(currentSuggestions => {
+            // Move current suggestions to previous
+            if (currentSuggestions.length > 0) {
+                setPreviousSuggestions(prevSuggestions => {
+                    const combined = [...currentSuggestions, ...prevSuggestions];
+                    const unique = [...new Set(combined)];
+                    return unique.slice(0, 30);
+                });
+            }
+            return []; // Clear current suggestions
+        });
 
         try {
             // Use intent-based contextual word selection
             const contextualWords = await getContextualWords(text);
             console.log('Intent-based suggestions:', contextualWords);
-            setSuggestions(contextualWords);
+            
+            // Add some random creative words to the mix
+            const randomWords = getRandomWords();
+            const allNewSuggestions = [...contextualWords, ...randomWords];
+            
+            // Remove duplicates and limit to 10 new suggestions
+            const uniqueNewSuggestions = [...new Set(allNewSuggestions)].slice(0, 10);
+            
+            // Filter against previous suggestions using a callback to get current state
+            setPreviousSuggestions(prevSuggestions => {
+                const filteredSuggestions = uniqueNewSuggestions.filter(word => !prevSuggestions.includes(word));
+                setSuggestions(filteredSuggestions.slice(0, 10));
+                return prevSuggestions; // Don't change previous suggestions here
+            });
         } catch (error) {
             console.error('Error generating predictions:', error);
-            // Fallback to basic therapeutic words
+            // Fallback to basic therapeutic words plus random words
             const fallbackWords = [
-                ...THERAPEUTIC_WORD_SETS.emotions.slice(0, 3),
-                ...THERAPEUTIC_WORD_SETS.connectors.slice(0, 3)
+                ...THERAPEUTIC_WORD_SETS.emotions.slice(0, 5),
+                ...THERAPEUTIC_WORD_SETS.connectors.slice(0, 3),
+                ...getRandomWords()
             ];
-            setSuggestions(fallbackWords);
+            setPreviousSuggestions(prevSuggestions => {
+                const filteredFallback = [...new Set(fallbackWords)]
+                    .filter(word => !prevSuggestions.includes(word))
+                    .slice(0, 10);
+                setSuggestions(filteredFallback);
+                return prevSuggestions; // Don't change previous suggestions here
+            });
         } finally {
             setIsGenerating(false);
             setIsWaitingForSuggestions(false);
         }
 
-    }, [getContextualWords, THERAPEUTIC_WORD_SETS]); // Dependencies
+    }, [getContextualWords, THERAPEUTIC_WORD_SETS, getRandomWords]); // Dependencies
 
     // Separate effect to trigger initial predictions when model is loaded
     useEffect(() => {
@@ -339,7 +394,7 @@ Respond with just 6 words separated by commas:`;
             setIsWaitingForSuggestions(false);
         }
 
-        // Clear suggestions while typing
+        // Clear suggestions while typing (but don't affect previous suggestions)
         setSuggestions([]);
 
         // Only trigger prediction logic if:
@@ -351,26 +406,26 @@ Respond with just 6 words separated by commas:`;
         const shouldPredict = justAddedSpace || isStartingNew;
 
         if (shouldPredict) {
-            // Set timer for "Take your time..." message (2 seconds)
-            // After 2 seconds: hide message, start loading predictions
+            // Set timer for "Take your time..." message (1 second)
+            // After 1 second: hide message, start loading predictions
             typingTimerRef.current = setTimeout(() => {
                 setShowTakeYourTime(false);
                 setIsWaitingForSuggestions(true);
-                
+
                 // Start prediction after showing loading state
                 predictNext(value);
-                
+
                 // Mark that we've had our first interaction
                 if (isFirstRun) {
                     setIsFirstRun(false);
                 }
-            }, 2000);
+            }, 1000);
         } else {
-            // For non-prediction triggering typing, just hide "Take your time..." after 2 seconds
+            // For non-prediction triggering typing, just hide "Take your time..." after 1 second
             typingTimerRef.current = setTimeout(() => {
                 setShowTakeYourTime(false);
                 setIsTyping(false);
-            }, 2000);
+            }, 1000);
         }
     };
 
@@ -379,19 +434,31 @@ Respond with just 6 words separated by commas:`;
         if (isGenerating) return;
 
         // Append the suggestion and a space to the input text
-        const newText = inputText + (inputText.endsWith(' ') ? '' : ' ') + suggestion + ' ';
-        setInputText(newText);
+        setInputText(currentText => {
+            const newText = currentText + (currentText.endsWith(' ') ? '' : ' ') + suggestion + ' ';
+            
+            // Clear current suggestions and move to previous
+            setSuggestions(currentSuggestions => {
+                if (currentSuggestions.length > 0) {
+                    setPreviousSuggestions(prevSuggestions => {
+                        const combined = [...currentSuggestions, ...prevSuggestions];
+                        const unique = [...new Set(combined)];
+                        return unique.slice(0, 30);
+                    });
+                }
+                return []; // Clear current suggestions
+            });
 
-        // Clear existing suggestions first
-        setSuggestions([]);
-
-        // Use setTimeout to ensure the state update happens first, then generate new predictions
-        setTimeout(() => {
-            predictNext(newText);
-            // When user clicks a suggestion, they're actively engaging, so reset to immediate mode
-            setIsFirstRun(true);
-        }, 50); // Small delay to ensure clean state
-    }, [inputText, isGenerating, predictNext]);
+            // Use setTimeout to ensure the state update happens first, then generate new predictions
+            setTimeout(() => {
+                predictNext(newText);
+                // When user clicks a suggestion, they're actively engaging, so reset to immediate mode
+                setIsFirstRun(true);
+            }, 50); // Small delay to ensure clean state
+            
+            return newText;
+        });
+    }, [isGenerating, predictNext]);
 
     // --- 5. Keyboard Navigation Handler ---
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -499,21 +566,39 @@ Respond with just 6 words separated by commas:`;
                 {(isGenerating || isWaitingForSuggestions) && suggestions.length === 0 && !showTakeYourTime && (
                     <>
                         {/* Loading skeleton for suggestions */}
-                        {[1, 2, 3, 4, 5, 6].map(i => (
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
                             <div key={i} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-600 rounded-full animate-pulse h-7" style={{ width: `${Math.random() * 40 + 60}px` }}></div>
                         ))}
                     </>
                 )}
+                
+                {/* New suggestions with highlighted styling */}
                 {suggestions.filter(s => s !== 'Thinking...').map((suggestion, index) => (
                     <button
-                        key={`${suggestion}-${index}`}
+                        key={`new-${suggestion}-${index}`}
                         onClick={() => applySuggestion(suggestion)}
                         disabled={isGenerating}
-                        className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis ${isGenerating
-                            ? 'bg-gray-300 dark:bg-gray-500 text-gray-600 dark:text-gray-300 cursor-not-allowed opacity-70'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-50 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-600 hover:-translate-y-0.5 active:translate-y-0'
+                        className={`inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap max-w-[150px] overflow-hidden text-ellipsis border-2 ${isGenerating
+                            ? 'bg-blue-200 dark:bg-blue-800 border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-300 cursor-not-allowed opacity-70'
+                            : 'bg-blue-100 dark:bg-blue-900 border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800 hover:-translate-y-0.5 active:translate-y-0 shadow-sm'
                             } ${!generatorRef.current ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        aria-label={`Add word: ${suggestion}`}
+                        aria-label={`Add new word: ${suggestion}`}
+                    >
+                        {suggestion}
+                    </button>
+                ))}
+                
+                {/* Previous suggestions with muted styling */}
+                {previousSuggestions.map((suggestion, index) => (
+                    <button
+                        key={`prev-${suggestion}-${index}`}
+                        onClick={() => applySuggestion(suggestion)}
+                        disabled={isGenerating}
+                        className={`inline-flex items-center gap-2 px-2.5 py-1 text-xs font-normal rounded-full transition-all duration-200 whitespace-nowrap max-w-[120px] overflow-hidden text-ellipsis ${isGenerating
+                            ? 'bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-50'
+                            : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300'
+                            } ${!generatorRef.current ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        aria-label={`Add previous word: ${suggestion}`}
                     >
                         {suggestion}
                     </button>
