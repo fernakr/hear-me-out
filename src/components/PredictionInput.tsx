@@ -1,7 +1,9 @@
 'use client'
 import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function PredictionInput() {
+    const router = useRouter();
     // State for the user's input text - start with "I " by default
     const [inputText, setInputText] = useState<string>('I ');
     // State for the generated suggestions - now with separation between new and previous
@@ -108,144 +110,67 @@ export default function PredictionInput() {
     // Enhanced contextual words based on semantic meaning rather than rigid patterns
     const getContextualWords = useCallback((text: string): string[] => {
         const lowercaseText = text.toLowerCase();
+        const contextualWords: string[] = [];
 
-        // Emotional context - enhanced
-        if (/feel|emotion|mood|happy|sad|angry|frustrated|anxious|depressed|joyful|peaceful|stressed|worried/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.thoughts,
-                ...THERAPEUTIC_WORD_SETS.adverbs,
-                ...THERAPEUTIC_WORD_SETS.adjectives,
-                ...THERAPEUTIC_WORD_SETS.lifeAreas
-            ];
+        // Detect emotional context - add selective emotion words (not all)
+        if (lowercaseText.includes('feel') || lowercaseText.includes('emotion') || lowercaseText.includes('mood')) {
+            // Shuffle and take 15-20 emotions for variety
+            const shuffledEmotions = THERAPEUTIC_WORD_SETS.emotions.sort(() => 0.5 - Math.random());
+            contextualWords.push(...shuffledEmotions.slice(0, 18));
         }
 
-        // Struggle/challenge context - enhanced
-        if (/struggle|difficult|problem|issue|challenge|hard|tough|overwhelming|stuck|lost|confused|broken|hurt/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.struggles,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.lifeAreas,
-                ...THERAPEUTIC_WORD_SETS.adjectives,
-                ...THERAPEUTIC_WORD_SETS.adverbs
-            ];
+        // Detect struggle context - add selective struggle-related words
+        if (lowercaseText.includes('struggle') || lowercaseText.includes('difficult') || lowercaseText.includes('hard')) {
+            const shuffledStruggles = THERAPEUTIC_WORD_SETS.struggles.sort(() => 0.5 - Math.random());
+            contextualWords.push(...shuffledStruggles.slice(0, 18));
         }
 
-        // Needs/wants context - enhanced
-        if (/need|want|hope|wish|require|seek|desire|long|crave|yearn|miss|deserve/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.needs,
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.lifeAreas,
-                ...THERAPEUTIC_WORD_SETS.adverbs
-            ];
+        // Detect need context - add selective need-related words
+        if (lowercaseText.includes('need') || lowercaseText.includes('want') || lowercaseText.includes('hope')) {
+            const shuffledNeeds = THERAPEUTIC_WORD_SETS.needs.sort(() => 0.5 - Math.random());
+            contextualWords.push(...shuffledNeeds.slice(0, 18));
         }
 
-        // Support context - enhanced
-        if (/help|support|care|love|understand|guidance|comfort|empathy|compassion|validation/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.relationships,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.lifeAreas,
-                ...THERAPEUTIC_WORD_SETS.adverbs
-            ];
+        // Detect support context - add selective support words
+        if (lowercaseText.includes('help') || lowercaseText.includes('support')) {
+            const shuffledSupport = THERAPEUTIC_WORD_SETS.support.sort(() => 0.5 - Math.random());
+            contextualWords.push(...shuffledSupport.slice(0, 18));
         }
 
-        // Growth/action context - enhanced
-        if (/try|work|practice|learn|grow|change|improve|better|develop|progress|heal|recover|transform/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.thoughts,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.lifeAreas,
-                ...THERAPEUTIC_WORD_SETS.adverbs,
-                ...THERAPEUTIC_WORD_SETS.adjectives
-            ];
+        // Detect relationship context - add selective relationship words
+        if (lowercaseText.includes('family') || lowercaseText.includes('friend') || lowercaseText.includes('relationship')) {
+            const shuffledRelationships = THERAPEUTIC_WORD_SETS.relationships.sort(() => 0.5 - Math.random());
+            contextualWords.push(...shuffledRelationships.slice(0, 18));
         }
 
-        // Thinking/cognitive context - enhanced  
-        if (/think|believe|know|understand|wonder|question|realize|recognize|remember|consider|reflect/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.thoughts,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.adverbs,
-                ...THERAPEUTIC_WORD_SETS.lifeAreas
-            ];
+        // Detect action context - add selective action words
+        if (lowercaseText.includes('try') || lowercaseText.includes('work') || lowercaseText.includes('change')) {
+            const shuffledActions = THERAPEUTIC_WORD_SETS.actions.sort(() => 0.5 - Math.random());
+            contextualWords.push(...shuffledActions.slice(0, 18));
         }
 
-        // Relationship context - enhanced
-        if (/family|friend|relationship|people|partner|therapist|parent|child|sibling|colleague|community/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.relationships,
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.thoughts,
-                ...THERAPEUTIC_WORD_SETS.adjectives,
-                ...THERAPEUTIC_WORD_SETS.actions
-            ];
+        // If we have context matches, add some varied connectors for flow
+        if (contextualWords.length > 0) {
+            const shuffledConnectors = THERAPEUTIC_WORD_SETS.connectors.sort(() => 0.5 - Math.random());
+            contextualWords.push(...shuffledConnectors.slice(0, 12));
         }
 
-        // Creative/skill context - enhanced
-        if (/music|art|creative|skill|talent|ability|learn|practice|draw|paint|sing|write|dance|cook|exercise/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.lifeAreas,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.adjectives,
-                ...THERAPEUTIC_WORD_SETS.adverbs,
-                ...THERAPEUTIC_WORD_SETS.support
-            ];
+        // If no specific context detected, provide a varied balanced mix
+        if (contextualWords.length === 0) {
+            const shuffledEmotions = THERAPEUTIC_WORD_SETS.emotions.sort(() => 0.5 - Math.random());
+            const shuffledActions = THERAPEUTIC_WORD_SETS.actions.sort(() => 0.5 - Math.random());
+            const shuffledSupport = THERAPEUTIC_WORD_SETS.support.sort(() => 0.5 - Math.random());
+            const shuffledConnectors = THERAPEUTIC_WORD_SETS.connectors.sort(() => 0.5 - Math.random());
+
+            contextualWords.push(
+                ...shuffledEmotions.slice(0, 12),
+                ...shuffledActions.slice(0, 12),
+                ...shuffledSupport.slice(0, 12),
+                ...shuffledConnectors.slice(0, 8)
+            );
         }
 
-        // Health/wellness context - enhanced
-        if (/health|mental|physical|wellness|therapy|healing|recovery|meditation|mindfulness|fitness|sleep|nutrition/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.lifeAreas,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.support,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.adjectives,
-                ...THERAPEUTIC_WORD_SETS.adverbs
-            ];
-        }
-
-        // Time/frequency context - enhanced
-        if (/time|today|yesterday|tomorrow|always|never|sometimes|often|recently|currently/.test(lowercaseText)) {
-            return [
-                ...THERAPEUTIC_WORD_SETS.time,
-                ...THERAPEUTIC_WORD_SETS.emotions,
-                ...THERAPEUTIC_WORD_SETS.actions,
-                ...THERAPEUTIC_WORD_SETS.adverbs,
-                ...THERAPEUTIC_WORD_SETS.thoughts
-            ];
-        }
-
-        // Default: ALL therapeutic words from ALL categories for maximum variety
-        return [
-            ...THERAPEUTIC_WORD_SETS.emotions,
-            ...THERAPEUTIC_WORD_SETS.needs,
-            ...THERAPEUTIC_WORD_SETS.actions,
-            ...THERAPEUTIC_WORD_SETS.support,
-            ...THERAPEUTIC_WORD_SETS.thoughts,
-            ...THERAPEUTIC_WORD_SETS.relationships,
-            ...THERAPEUTIC_WORD_SETS.struggles,
-            ...THERAPEUTIC_WORD_SETS.time,
-            ...THERAPEUTIC_WORD_SETS.connectors,
-            ...THERAPEUTIC_WORD_SETS.adverbs,
-            ...THERAPEUTIC_WORD_SETS.adjectives,
-            ...THERAPEUTIC_WORD_SETS.lifeAreas
-        ];
+        return [...new Set(contextualWords)]; // Remove duplicates
     }, [THERAPEUTIC_WORD_SETS]);
 
     // Extract recently used words to filter out only recent duplicates, not entire text history
@@ -264,7 +189,7 @@ export default function PredictionInput() {
     }, []);
 
     // Main prediction logic
-    const generateSuggestions = useCallback((text: string) => {
+    const generateSuggestions = useCallback((text: string, currentPreviousSuggestions: string[] = []) => {
         const trimmedText = text.trim();
         if (trimmedText.length < 1) {
             setSuggestions([]);
@@ -278,45 +203,45 @@ export default function PredictionInput() {
             // Get words already used in the text
             const usedWords = getUsedWords(text);
 
-            // Get pattern-based suggestions
-            const patternSuggestions = getPatternBasedNextWords(text);
+            // Combine used words and previous suggestions for filtering
+            const wordsToAvoid = new Set([
+                ...Array.from(usedWords),
+                ...currentPreviousSuggestions.map(w => w.toLowerCase())
+            ]);
 
-            // Get contextual therapeutic words
-            const contextualWords = getContextualWords(text);
+            // Get pattern-based suggestions - filter during generation
+            const patternSuggestions = getPatternBasedNextWords(text)
+                .filter(word => !wordsToAvoid.has(word.toLowerCase()));
 
-            // Add some random creative words
-            const randomWords = getRandomWords();
+            // Get contextual therapeutic words - filter during generation  
+            const contextualWords = getContextualWords(text)
+                .filter(word => !wordsToAvoid.has(word.toLowerCase()));
+
+            // Get random creative words - filter during generation
+            const randomWords = getRandomWords()
+                .filter(word => !wordsToAvoid.has(word.toLowerCase()));
 
             // Combine all suggestions - prioritize pattern suggestions first, then contextual, then random
             const allSuggestions = [...patternSuggestions, ...contextualWords, ...randomWords];
 
-            // Filter out already used words, remove duplicates, and limit to 15 new suggestions
-            const filteredSuggestions = allSuggestions
-                .filter(word => !usedWords.has(word.toLowerCase()))
+            // Remove duplicates and take exactly 15 suggestions
+            const uniqueSuggestions = allSuggestions
                 .filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates
                 .slice(0, 15);
 
             // Update suggestions and accumulate previous suggestions properly
             setSuggestions(currentSuggestions => {
-                // Immediately update previous suggestions with the current ones
-                setPreviousSuggestions(prevSuggestions => {
-                    // Combine ALL previous suggestions: current suggestions + existing previous suggestions
-                    const allPreviousSuggestions = [...currentSuggestions, ...prevSuggestions];
+                // First, calculate what the new previous suggestions will be
+                const newPreviousSuggestions = [...currentSuggestions, ...currentPreviousSuggestions]
+                    .filter(word => !usedWords.has(word.toLowerCase())) // Remove used words
+                    .filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates
+                    .slice(0, 80); // Keep up to 80 previous suggestions
 
-                    // Filter and clean up previous suggestions - allow overlap with new suggestions for maximum variety
-                    const cleanedPrevious = allPreviousSuggestions
-                        .filter(word => !usedWords.has(word.toLowerCase())) // Remove used words
-                        // Allow overlap with new suggestions since users want maximum choice - visually distinct with different colors
-                        .filter((word, index, arr) => arr.indexOf(word) === index) // Remove duplicates within previous suggestions
-                        .slice(0, 35); // Keep up to 35 previous suggestions for total of 50 (15 new + 35 previous)
-
-                    // Optional: Log total suggestions for debugging
-                    // console.log('Previous suggestions count:', cleanedPrevious.length, 'Total with new:', filteredSuggestions.length + cleanedPrevious.length);
-                    return cleanedPrevious;
-                });
+                // Update previous suggestions with the calculated list
+                setPreviousSuggestions(newPreviousSuggestions);
 
                 // Return the new suggestions
-                return filteredSuggestions;
+                return uniqueSuggestions;
             });
 
             setIsGenerating(false);
@@ -343,9 +268,9 @@ export default function PredictionInput() {
 
         // Generate suggestions when user adds a space (completes a word)
         if (newText.endsWith(' ') && newText !== ' ') {
-            generateSuggestions(newText);
+            generateSuggestions(newText, previousSuggestions);
         }
-    }, [generateSuggestions]);
+    }, [generateSuggestions, previousSuggestions]);
 
     // Handle applying a suggestion
     const applySuggestion = useCallback((word: string) => {
@@ -359,8 +284,8 @@ export default function PredictionInput() {
         setPreviousSuggestions(previous => previous.filter(w => w !== word));
 
         // Generate new suggestions based on the updated text
-        generateSuggestions(newText);
-    }, [inputText, generateSuggestions]);
+        generateSuggestions(newText, previousSuggestions);
+    }, [inputText, generateSuggestions, previousSuggestions]);
 
     // Handle keyboard shortcuts
     const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -374,9 +299,20 @@ export default function PredictionInput() {
     React.useEffect(() => {
         if (!hasInitialized) {
             setHasInitialized(true);
-            generateSuggestions(inputText);
+            generateSuggestions(inputText, previousSuggestions);
         }
-    }, [hasInitialized, inputText, generateSuggestions]);
+    }, [hasInitialized, inputText, generateSuggestions, previousSuggestions]);
+
+    // Handle sending text to questionnaire
+    const handleSendToQuestionnaire = useCallback(() => {
+        const textToSend = inputText.trim();
+        if (textToSend.length > 3) { // More than just "I "
+            const encodedText = encodeURIComponent(textToSend);
+            router.push(`/questionnaire?prefill=${encodedText}`);
+        } else {
+            router.push('/questionnaire');
+        }
+    }, [inputText, router]);
 
     return (
         <div className="p-5 w-full max-w-3xl mx-auto">
@@ -403,6 +339,19 @@ export default function PredictionInput() {
                     </div>
                 )}
             </div>
+
+            {/* Send to Questionnaire Button */}
+            {inputText.trim().length > 3 && (
+                <div className="mb-4">
+                    <button
+                        onClick={handleSendToQuestionnaire}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                        aria-label="Use this text to start the questionnaire"
+                    >
+                        Use this text to start questionnaire →
+                    </button>
+                </div>
+            )}
 
             <div id="suggestions-container" className="min-h-[80px] flex flex-wrap gap-2" role="region" aria-label="Word suggestions">
                 {/* Show "Take your time..." message when pausing */}

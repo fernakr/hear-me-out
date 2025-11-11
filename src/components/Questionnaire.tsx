@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AutoResizeTextarea from './AutoResizeTextarea';
 import StartOverButton from './StartOverButton';
 
 export default function Questionnaire() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [questionIndex, setQuestionIndex] = useState(0);
 
     const questions = [
@@ -33,10 +34,15 @@ export default function Questionnaire() {
         }
     ]
 
-    // Initialize responses array with empty strings for each question
-    const [responses, setResponses] = useState<string[]>(() =>
-        new Array(questions.length).fill('')
-    );
+    // Initialize responses array with prefill if available
+    const [responses, setResponses] = useState<string[]>(() => {
+        const initialResponses = new Array(questions.length).fill('');
+        const prefillText = searchParams.get('prefill');
+        if (prefillText) {
+            initialResponses[0] = decodeURIComponent(prefillText);
+        }
+        return initialResponses;
+    });
 
     const updateResponse = (value: string) => {
         setResponses(prev => {
