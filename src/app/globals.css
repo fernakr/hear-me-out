@@ -21,10 +21,22 @@
 } */
 
 body {
-  background: var(--background);
+  background: transparent; /* Let the p5 background show through */
   color: var(--foreground);
   font-family: var(--font-atkinson-hyperlegible-mono), system-ui, sans-serif;
 }
+
+/* Content containers should have backgrounds for readability */
+.content-container {
+  @apply bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-gray-200/50;
+}
+
+/* Dark mode support for content containers */
+/* @media (prefers-color-scheme: dark) {
+  .content-container {
+    @apply bg-gray-900/90 border-gray-700/50;
+  }
+} */
 
 a {
   @apply text-blue-600 underline;

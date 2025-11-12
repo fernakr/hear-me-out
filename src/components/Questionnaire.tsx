@@ -131,7 +131,7 @@ export default function Questionnaire() {
     };
 
     return (
-        <div className="w-full max-w-4xl ">
+        <div className="w-full max-w-4xl content-container p-8">
             <div className="flex justify-between mb-8 gap-3">
 
                 <span><span className="hidden lg:inline">Question </span>{questionIndex + 1} of {questions.length}</span>

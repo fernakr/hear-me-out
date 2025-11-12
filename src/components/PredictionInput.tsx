@@ -233,7 +233,7 @@ export default function PredictionInput() {
     }, [inputText, router, getWordCount]);
 
     return (
-        <div className="p-5 w-full max-w-3xl mx-auto">
+        <div className="p-5 w-full max-w-3xl mx-auto content-container">
             <h2 className="text-xl font-bold mb-4">Start typing or use the helper bubbles if you are struggling to come up with what you want to work on.</h2>
 
             <div className="relative">
