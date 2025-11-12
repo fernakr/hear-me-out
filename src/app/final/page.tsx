@@ -19,6 +19,14 @@ function FinalPageContent() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [showManualCopy, setShowManualCopy] = useState(false);
 
+  // Word count limits
+  const maxWords = 100; // Reasonable limit for the final message
+
+  // Helper function to count words
+  const getWordCount = (text: string): number => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
+
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(fullMessage);
@@ -51,11 +59,11 @@ function FinalPageContent() {
   return (
 
 
-    <div className="max-w-4xl">
+    <div className="max-w-4xl content-container p-8">
       <div className="mb-4 flex justify-end">
         <StartOverButton />
       </div>
-      <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4 ">Now the hard part.</h2>
+      <h2 className="text-2xl font-semibold text-gray-800  mb-4 ">Now the hard part.</h2>
       <div className="grid md:grid-cols-2 md:gap-5 lg:gap-10">
 
         <div className="col-span-1">
@@ -84,10 +92,10 @@ function FinalPageContent() {
             onChange={setFullMessage}
             className="w-full border mb-3 p-6"
             minHeight="80px"
-            maxLength={600}
+            maxWords={maxWords}
           />
           <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-            <span>{fullMessage.length}/600 characters</span>
+            <span>{getWordCount(fullMessage)} words (max {maxWords})</span>
             <button
               onClick={copyToClipboard}
               className="button "
@@ -116,7 +124,7 @@ function FinalPageContent() {
 
 export default function FinalPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-gray-50  flex items-center justify-center">Loading...</div>}>
       <FinalPageContent />
     </Suspense>
   );

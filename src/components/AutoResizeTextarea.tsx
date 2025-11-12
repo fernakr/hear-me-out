@@ -7,6 +7,8 @@ interface AutoResizeTextareaProps {
   onChange: (value: string) => void;
   placeholder?: string;
   maxLength?: number;
+  minWords?: number;
+  maxWords?: number;
   className?: string;
   required?: boolean;
   id?: string;
@@ -18,12 +20,19 @@ export default function AutoResizeTextarea({
   onChange,
   placeholder,
   maxLength,
+  minWords,
+  maxWords,
   className = '',
   required = false,
   id,
   minHeight = '40px'
 }: AutoResizeTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Helper function to count words
+  const getWordCount = (text: string): number => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
 
   const autoResize = () => {
     if (textareaRef.current) {
@@ -36,7 +45,18 @@ export default function AutoResizeTextarea({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    onChange(e.target.value);
+    const newValue = e.target.value;
+    
+    // Check word limits if specified
+    if (maxWords !== undefined) {
+      const wordCount = getWordCount(newValue);
+      if (wordCount > maxWords) {
+        // Prevent input if word limit exceeded
+        return;
+      }
+    }
+    
+    onChange(newValue);
     setTimeout(autoResize, 0);
   };
 

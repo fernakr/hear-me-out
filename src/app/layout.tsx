@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Atkinson_Hyperlegible_Mono, Poppins } from "next/font/google";
 import "./globals.css";
+import ClientBackground from "@/components/ClientBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,8 +40,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${atkinsonHyperlegibleMono.variable} ${poppins.variable} antialiased py-5 px-8 flex min-h-screen items-center justify-center `}
+        className={`${geistSans.variable} ${geistMono.variable} ${atkinsonHyperlegibleMono.variable} ${poppins.variable} antialiased py-5 px-8 flex min-h-screen items-center justify-center`}
       >
+        <ClientBackground />
         {children}
       </body>
     </html>
