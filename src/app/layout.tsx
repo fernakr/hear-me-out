@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Atkinson_Hyperlegible_Mono, Poppins } from "next/font/google";
 import "./globals.css";
-import P5Background from "@/components/P5Background";
+import ClientBackground from "@/components/ClientBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,7 +42,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${atkinsonHyperlegibleMono.variable} ${poppins.variable} antialiased py-5 px-8 flex min-h-screen items-center justify-center`}
       >
-        <P5Background />
+        <ClientBackground />
         {children}
       </body>
     </html>

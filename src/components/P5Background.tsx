@@ -2,15 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 
-interface Particle {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  size: number;
-  opacity: number;
-}
-
 export default function P5Background() {
   const containerRef = useRef<HTMLDivElement>(null);
   const p5InstanceRef = useRef<any>(null);
@@ -23,72 +14,145 @@ export default function P5Background() {
       const p5 = (await import('p5')).default;
       
       const sketch = (p: any) => {
-        let particles: Particle[] = [];
-        const numParticles = 50;
+        let time = 0;
+        let waveShader: any;
+        let canvas: any;
 
-      p.setup = () => {
-        // Create canvas that fills the viewport
-        p.createCanvas(p.windowWidth, p.windowHeight);
-        
-        // Initialize particles
-        for (let i = 0; i < numParticles; i++) {
-          particles.push({
-            x: p.random(p.width),
-            y: p.random(p.height),
-            vx: p.random(-1, 1), // Faster movement for testing
-            vy: p.random(-1, 1),
-            size: p.random(2, 6), // Larger particles
-            opacity: p.random(0.3, 0.7) // More visible opacity
-          });
-        }
+        // Vertex shader (standard)
+        const vertSource = `
+          attribute vec3 aPosition;
+          attribute vec2 aTexCoord;
+          varying vec2 vTexCoord;
+          
+          void main() {
+            vTexCoord = aTexCoord;
+            vec4 positionVec4 = vec4(aPosition, 1.0);
+            positionVec4.xy = positionVec4.xy * 2.0 - 1.0;
+            gl_Position = positionVec4;
+          }
+        `;
 
-        console.log('P5 canvas initialized with', particles.length, 'particles');
-      };
+        // Fragment shader with ocean waves and halftone
+        const fragSource = `
+          precision mediump float;
+          varying vec2 vTexCoord;
+          uniform float u_time;
+          uniform vec2 u_resolution;
+          
+          // Noise function for organic wave movement
+          float noise(vec2 st) {
+            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+          }
+          
+          // Smooth noise
+          float smoothNoise(vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+            
+            float a = noise(i);
+            float b = noise(i + vec2(1.0, 0.0));
+            float c = noise(i + vec2(0.0, 1.0));
+            float d = noise(i + vec2(1.0, 1.0));
+            
+            vec2 u = f * f * (3.0 - 2.0 * f);
+            
+            return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+          }
+          
+          // Ocean wave function
+          float oceanWave(vec2 uv, float time) {
+            float wave = 0.0;
+            
+            // Multiple wave layers for complexity
+            wave += sin(uv.x * 3.0 + time * 0.5) * 0.3;
+            wave += sin(uv.x * 7.0 - time * 0.3) * 0.15;
+            wave += sin(uv.y * 2.0 + time * 0.4) * 0.2;
+            wave += sin(uv.y * 5.0 - time * 0.6) * 0.1;
+            
+            // Add noise for organic movement
+            wave += smoothNoise(uv * 4.0 + time * 0.1) * 0.2;
+            wave += smoothNoise(uv * 8.0 - time * 0.05) * 0.1;
+            
+            return wave;
+          }
+          
+          // Halftone pattern function
+          float halftone(vec2 uv, float size, float intensity) {
+            vec2 grid = fract(uv * size);
+            vec2 center = vec2(0.5, 0.5);
+            float dist = distance(grid, center);
+            
+            // Create halftone dots that vary with intensity
+            float dotSize = intensity * 0.4 + 0.1;
+            return smoothstep(dotSize, dotSize - 0.1, dist);
+          }
+          
+          void main() {
+            vec2 uv = vTexCoord;
+            vec2 st = gl_FragCoord.xy / u_resolution.xy;
+            
+            // Create ocean wave
+            float wave = oceanWave(st * 2.0, u_time);
+            
+            // Normalize wave to 0-1 range
+            float waveIntensity = (wave + 1.0) * 0.5;
+            
+            // Base ocean colors (soft pastels)
+            vec3 color1 = vec3(0.9, 0.95, 1.0);    // Very light blue
+            vec3 color2 = vec3(0.95, 0.9, 1.0);    // Very light lavender
+            vec3 color3 = vec3(0.9, 1.0, 0.95);    // Very light mint
+            vec3 color4 = vec3(1.0, 0.95, 0.9);    // Very light peach
+            
+            // Mix colors based on wave and position
+            vec3 baseColor = mix(color1, color2, sin(st.x * 2.0 + u_time * 0.1) * 0.5 + 0.5);
+            baseColor = mix(baseColor, color3, sin(st.y * 3.0 + u_time * 0.15) * 0.3 + 0.3);
+            baseColor = mix(baseColor, color4, waveIntensity * 0.2);
+            
+            // Create halftone effect
+            float halftoneSize = 20.0 + sin(u_time * 0.1) * 5.0; // Animated halftone size
+            float halftonePattern = halftone(st + wave * 0.1, halftoneSize, waveIntensity);
+            
+            // Secondary halftone layer for more detail
+            float halftone2 = halftone(st * 1.5 + wave * 0.05, halftoneSize * 1.5, waveIntensity * 0.7);
+            
+            // Combine halftone patterns
+            float finalHalftone = halftonePattern * 0.7 + halftone2 * 0.3;
+            
+            // Apply halftone to color with gentle opacity
+            vec3 halftoneColor = baseColor * (0.95 + finalHalftone * 0.05);
+            
+            // Add subtle wave highlighting
+            float waveHighlight = smoothstep(0.6, 0.8, waveIntensity) * 0.03;
+            halftoneColor += vec3(waveHighlight);
+            
+            // Ensure colors stay in pastel range
+            halftoneColor = clamp(halftoneColor, vec3(0.85), vec3(1.0));
+            
+            gl_FragColor = vec4(halftoneColor, 1.0);
+          }
+        `;
 
-      p.draw = () => {
-        // Create a more visible background
-        p.background(240, 242, 247); // Slightly darker background for better contrast
-        
-        // Skip the gradient overlay for now to test visibility
-        // Create a simple test: draw larger, more visible particles
-        
-        // Update and draw particles
-        particles.forEach((particle, index) => {
-          // Update position
-          particle.x += particle.vx;
-          particle.y += particle.vy;
+        p.setup = () => {
+          canvas = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+          
+          // Create shader
+          waveShader = p.createShader(vertSource, fragSource);
+        };
 
-          // Wrap around edges
-          if (particle.x < 0) particle.x = p.width;
-          if (particle.x > p.width) particle.x = 0;
-          if (particle.y < 0) particle.y = p.height;
-          if (particle.y > p.height) particle.y = 0;
-
-          // More visible pulsing effect
-          particle.opacity = 0.3 + 0.4 * p.sin(p.millis() * 0.002 + index * 0.2);
-
-          // Draw particle - make it more visible
-          p.fill(100, 116, 139, particle.opacity * 255); // darker blue-gray with better opacity
-          p.noStroke();
-          p.ellipse(particle.x, particle.y, particle.size * 3); // Make particles larger
-
-          // Draw connections between nearby particles - make them more visible
-          particles.slice(index + 1).forEach(otherParticle => {
-            const distance = p.dist(particle.x, particle.y, otherParticle.x, otherParticle.y);
-            if (distance < 150) { // Increase connection distance
-              const alpha = p.map(distance, 0, 150, 0.4, 0); // Make lines more visible
-              p.stroke(100, 116, 139, alpha * 255); // darker blue-gray
-              p.strokeWeight(1); // Thicker lines
-              p.line(particle.x, particle.y, otherParticle.x, otherParticle.y);
-            }
-          });
-        });
-
-        // Add a simple test indicator
-        p.fill(255, 0, 0); // Red color for testing
-        p.noStroke();
-        p.ellipse(50, 50, 20); // Red circle in top-left corner to confirm canvas is working
-      };
+        p.draw = () => {
+          // Use the shader
+          p.shader(waveShader);
+          
+          // Pass uniforms to shader
+          waveShader.setUniform('u_time', time * 0.02);
+          waveShader.setUniform('u_resolution', [p.width, p.height]);
+          
+          // Draw a rectangle that covers the entire canvas
+          p.rect(-p.width/2, -p.height/2, p.width, p.height);
+          
+          // Increment time
+          time++;
+        };
 
         p.windowResized = () => {
           p.resizeCanvas(p.windowWidth, p.windowHeight);
@@ -110,7 +174,9 @@ export default function P5Background() {
         p5InstanceRef.current = null;
       }
     };
-  }, []);  return (
+  }, []);
+
+  return (
     <div 
       ref={containerRef} 
       className="fixed inset-0 -z-10 pointer-events-none"

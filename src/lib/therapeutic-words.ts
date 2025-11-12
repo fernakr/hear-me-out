@@ -90,7 +90,20 @@ export const THERAPEUTIC_WORD_SETS = {
         'professionals', 'specialists', 'authorities', 'figures', 'role-models', 'heroes', 'inspirations',
         'influences', 'impacts', 'effects', 'consequences', 'results', 'outcomes', 'achievements',
         'successes', 'failures', 'mistakes', 'errors', 'lessons', 'experiences', 'memories', 'moments',
-        'times', 'periods', 'phases', 'stages', 'chapters'
+        'times', 'periods', 'phases', 'stages', 'chapters',
+        // Enhanced family words
+        'mother', 'father', 'mom', 'dad', 'grandmother', 'grandfather', 'grandma', 'grandpa',
+        'aunt', 'uncle', 'cousin', 'nephew', 'niece', 'spouse', 'husband', 'wife', 'daughter', 'son',
+        'stepfamily', 'adopted', 'foster', 'extended-family', 'in-laws', 'siblings', 'brotherhood', 'sisterhood',
+        // Enhanced friendship words
+        'best-friend', 'close-friend', 'old-friend', 'new-friend', 'childhood-friend', 'lifelong-friend',
+        'companion', 'buddy', 'pal', 'confidant', 'soul-mate', 'kindred-spirit', 'fellowship', 'camaraderie',
+        'bonds', 'friendship', 'companionship', 'social-circle', 'peer-group', 'squad', 'crew', 'tribe',
+        // Enhanced love words
+        'love', 'loving', 'beloved', 'dear', 'precious', 'cherished', 'adored', 'treasured', 'affection',
+        'affectionate', 'tender', 'caring', 'nurturing', 'devoted', 'passionate', 'romantic', 'intimate',
+        'unconditional-love', 'self-love', 'compassionate', 'heart', 'heartfelt', 'warmth', 'embrace',
+        'hug', 'kiss', 'cuddle', 'comfort', 'solace', 'devotion', 'loyalty', 'commitment', 'dedication'
     ],
 
     // Time and frequency

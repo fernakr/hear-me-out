@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import P5SuggestionBackground from './P5SuggestionBackground';
 import {
     getPatternBasedNextWords,
     getContextualWords,
@@ -22,8 +23,6 @@ const SUGGESTION_CONFIG = {
     MIN_WORD_COUNT_FOR_QUESTIONNAIRE: 7, // Minimum 7 words to show "Use this text" button
     MAX_WORD_COUNT_FOR_QUESTIONNAIRE: 40  // Maximum 40 words to show "Use this text" button
 } as const;
-
-const SKELETON_WIDTHS = [70, 85, 95, 75, 100, 80] as const;
 
 export default function PredictionInput() {
     const router = useRouter();
@@ -177,10 +176,11 @@ export default function PredictionInput() {
             setSuggestions(current => current.filter(w => w !== word));
 
             // Remove the clicked word from previous suggestions as well
-            setPreviousSuggestions(previous => previous.filter(w => w !== word));
+            const updatedPreviousSuggestions = previousSuggestions.filter(w => w !== word);
+            setPreviousSuggestions(updatedPreviousSuggestions);
 
-            // Generate new suggestions based on the updated text
-            generateSuggestions(newText, previousSuggestions);
+            // Generate new suggestions based on the updated text with updated previous suggestions
+            generateSuggestions(newText, updatedPreviousSuggestions);
         } catch (error) {
             console.error('Error applying suggestion:', error);
         }
@@ -233,10 +233,16 @@ export default function PredictionInput() {
     }, [inputText, router, getWordCount]);
 
     return (
-        <div className="p-5 w-full max-w-3xl mx-auto content-container">
-            <h2 className="text-xl font-bold mb-4">Start typing or use the helper bubbles if you are struggling to come up with what you want to work on.</h2>
+        <>
+            <P5SuggestionBackground 
+                suggestions={suggestions}
+                previousSuggestions={previousSuggestions}
+                onSuggestionClick={applySuggestion}
+            />
+            <div className="p-5 w-full max-w-3xl mx-auto content-container flex flex-col items-center text-center">
+                <h2 className="text-xl font-bold mb-4">Start typing or click on the floating words around the screen if you are struggling to come up with what you want to work on.</h2>
 
-            <div className="relative">
+            <div className="relative w-full">
                 <textarea
                     id="input-text"
                     rows={4}
@@ -259,7 +265,7 @@ export default function PredictionInput() {
             </div>
 
             {/* Word count and requirements display */}
-            <div className="flex justify-between mt-2 text-sm text-gray-500 mb-4">
+            <div className="flex justify-center items-center gap-8 mt-2 text-sm text-gray-500 mb-4">
                 <span>{getWordCount(inputText)} words</span>
                 <span>
                     {(() => {
@@ -281,7 +287,7 @@ export default function PredictionInput() {
                 return wordCount >= SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE && 
                        wordCount <= SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE;
             })() && (
-                <div className="mb-4">
+                <div className="mb-4 flex justify-center">
                     <button
                         onClick={handleSendToQuestionnaire}
                         className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
@@ -292,50 +298,15 @@ export default function PredictionInput() {
                 </div>
             )}
 
-            <div id="suggestions-container" className="min-h-20 flex flex-wrap gap-2 items-start justify-start align-top" role="region" aria-label="Word suggestions">
-                {/* Show loading skeleton when generating suggestions */}
-                {isGenerating && (
-                    <>
-                        {SKELETON_WIDTHS.map((width, index) => (
-                            <div
-                                key={`skeleton-${index}`}
-                                className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse self-start"
-                                style={{ width: `${width}px` }}
-                                aria-hidden="true"
-                            />
-                        ))}
-                    </>
-                )}
-
-                {/* Show actual suggestions */}
-                {!isGenerating && (
-                    <>
-                        {/* New suggestions */}
-                        {suggestions.map((suggestion, index) => (
-                            <button
-                                key={`new-${suggestion}-${index}`}
-                                onClick={() => applySuggestion(suggestion)}
-                                className="px-3 py-2 text-sm font-medium bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-700 transition-colors border border-blue-200 dark:border-blue-700 self-start"
-                                aria-label={`Add new word: ${suggestion}`}
-                            >
-                                {suggestion}
-                            </button>
-                        ))}
-
-                        {/* Previous suggestions */}
-                        {previousSuggestions.map((suggestion, index) => (
-                            <button
-                                key={`prev-${suggestion}-${index}`}
-                                onClick={() => applySuggestion(suggestion)}
-                                className="px-3 py-2 text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 self-start"
-                                aria-label={`Add previous word: ${suggestion}`}
-                            >
-                                {suggestion}
-                            </button>
-                        ))}
-                    </>
+            {/* Instructions for the floating suggestions */}
+            <div className="text-center text-sm text-gray-600 mt-4">
+                {isGenerating ? (
+                    <span>Generating floating suggestions...</span>
+                ) : (
+                    <span>Click on the floating words around the screen to add them to your text</span>
                 )}
             </div>
         </div>
+        </>
     );
 }

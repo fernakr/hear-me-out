@@ -39,6 +39,15 @@ export const getPatternBasedNextWords = (text: string): string[] => {
     if (lastWord === 'hope') {
         return ['that', 'to', 'for', 'I', 'this', 'things', 'life'];
     }
+    if (lastWord === 'love' || lastWord === 'loved') {
+        return ['my', 'being', 'feeling', 'so', 'deeply', 'truly', 'unconditionally', 'them', 'you', 'myself'];
+    }
+    if (lastWord === 'family' || lastWord === 'friends') {
+        return ['and', 'are', 'have', 'support', 'love', 'understand', 'help', 'care', 'mean', 'matter'];
+    }
+    if (lastWord === 'mother' || lastWord === 'father' || lastWord === 'mom' || lastWord === 'dad') {
+        return ['and', 'is', 'was', 'has', 'loves', 'cares', 'supports', 'understands', 'helped', 'taught'];
+    }
 
     // Default essential connectors
     return ['and', 'but', 'because'];
@@ -74,7 +83,11 @@ export const getContextualWords = (text: string): string[] => {
     }
 
     // Detect relationship context
-    if (lowercaseText.includes('family') || lowercaseText.includes('friend') || lowercaseText.includes('relationship')) {
+    if (lowercaseText.includes('family') || lowercaseText.includes('friend') || lowercaseText.includes('relationship') || 
+        lowercaseText.includes('love') || lowercaseText.includes('mother') || lowercaseText.includes('father') || 
+        lowercaseText.includes('mom') || lowercaseText.includes('dad') || lowercaseText.includes('partner') || 
+        lowercaseText.includes('spouse') || lowercaseText.includes('husband') || lowercaseText.includes('wife') ||
+        lowercaseText.includes('children') || lowercaseText.includes('parents') || lowercaseText.includes('sibling')) {
         const shuffledRelationships = [...THERAPEUTIC_WORD_SETS.relationships].sort(() => 0.5 - Math.random());
         contextualWords.push(...shuffledRelationships.slice(0, 18));
     }
