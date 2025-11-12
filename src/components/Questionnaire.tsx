@@ -56,12 +56,24 @@ export default function Questionnaire() {
 
     const isCurrentQuestionAnswered = () => {
         const currentResponse = responses[questionIndex];
-        return currentResponse && currentResponse.trim().length > 0;
+        if (!currentResponse || currentResponse.trim().length === 0) {
+            return false;
+        }
+        const wordCount = getWordCount(currentResponse);
+        return wordCount >= minWords && wordCount <= maxWords;
     };
 
     const handleNext = () => {
         if (!isCurrentQuestionAnswered()) {
-            alert('Please answer the current question before proceeding.');
+            const currentResponse = responses[questionIndex] || '';
+            const wordCount = getWordCount(currentResponse);
+            if (currentResponse.trim().length === 0) {
+                alert('Please answer the current question before proceeding.');
+            } else if (wordCount < minWords) {
+                alert(`Please add ${minWords - wordCount} more words to meet the minimum requirement of ${minWords} words.`);
+            } else if (wordCount > maxWords) {
+                alert(`Please reduce your answer by ${wordCount - maxWords} words to stay within the ${maxWords} word limit.`);
+            }
             return;
         }
         if (questionIndex < questions.length - 1) {
@@ -77,12 +89,24 @@ export default function Questionnaire() {
 
     const isFinalQuestionAnswered = () => {
         const finalResponse = responses[questions.length - 1];
-        return finalResponse && finalResponse.trim().length > 0;
+        if (!finalResponse || finalResponse.trim().length === 0) {
+            return false;
+        }
+        const wordCount = getWordCount(finalResponse);
+        return wordCount >= minWords && wordCount <= maxWords;
     };
 
     const handleSubmit = () => {
         if (!isFinalQuestionAnswered()) {
-            alert('Please complete your encouraging message before submitting.');
+            const finalResponse = responses[questions.length - 1] || '';
+            const wordCount = getWordCount(finalResponse);
+            if (finalResponse.trim().length === 0) {
+                alert('Please complete your encouraging message before submitting.');
+            } else if (wordCount < minWords) {
+                alert(`Please add ${minWords - wordCount} more words to meet the minimum requirement of ${minWords} words.`);
+            } else if (wordCount > maxWords) {
+                alert(`Please reduce your message by ${wordCount - maxWords} words to stay within the ${maxWords} word limit.`);
+            }
             return;
         }
 
@@ -98,7 +122,13 @@ export default function Questionnaire() {
 
 
 
-    const maxLength = 300;
+    const minWords = 7;
+    const maxWords = 40;
+
+    // Helper function to count words
+    const getWordCount = (text: string): number => {
+        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    };
 
     return (
         <div className="w-full max-w-4xl ">
@@ -120,13 +150,29 @@ export default function Questionnaire() {
                     className="w-full border p-2"
                     value={responses[questionIndex] || ''}
                     onChange={updateResponse}
-                    maxLength={maxLength}
+                    minWords={minWords}
+                    maxWords={maxWords}
                     placeholder="Type your response here... (Required)"
                     required
                 />
                 <div className="flex justify-between mt-2 text-sm text-gray-500">
-                    <span>{`${(responses[questionIndex] || '').length}/${maxLength} characters`}</span>
-                    <span>{isCurrentQuestionAnswered() ? '✓ Answered' : '⚠ Required'}</span>
+                    <span>{getWordCount(responses[questionIndex] || '')} words</span>
+                    <span>{minWords}-{maxWords} words required</span>
+                    <span>
+                        {(() => {
+                            const currentResponse = responses[questionIndex] || '';
+                            const wordCount = getWordCount(currentResponse);
+                            if (currentResponse.trim().length === 0) {
+                                return '⚠ Required';
+                            } else if (wordCount < minWords) {
+                                return `Need ${minWords - wordCount} more words`;
+                            } else if (wordCount > maxWords) {
+                                return `${wordCount - maxWords} words over limit`;
+                            } else {
+                                return '✓ Ready';
+                            }
+                        })()}
+                    </span>
                 </div>
             </div>
 

@@ -140,6 +140,51 @@ export const POS_PATTERNS: Record<string, string[]> = {
     'CCONJ': ['I', 'life', 'growth', 'healing', 'love', 'peace', 'understanding', 'acceptance']
 };
 
+// Diverse skill categories for personal development and growth
+export const SKILL_CATEGORIES = [
+    // Musical Skills
+    'piano', 'guitar', 'ukulele', 'violin', 'drums', 'singing', 'songwriting', 'music-theory', 'beatboxing', 'harmonica',
+    
+    // Visual Arts
+    'drawing', 'painting', 'sketching', 'watercolor', 'digital-art', 'photography', 'sculpture', 'pottery', 'calligraphy', 'origami',
+    
+    // Physical & Movement
+    'yoga', 'dancing', 'rock-climbing', 'swimming', 'martial-arts', 'running', 'cycling', 'hiking', 'stretching', 'balance',
+    
+    // Crafts & Making
+    'knitting', 'woodworking', 'gardening', 'cooking', 'baking', 'sewing', 'jewelry-making', 'candle-making', 'soap-making', 'embroidery',
+    
+    // Mental & Cognitive
+    'meditation', 'mindfulness', 'reading', 'writing', 'journaling', 'chess', 'puzzles', 'memory-training', 'speed-reading', 'learning-languages',
+    
+    // Social & Communication
+    'listening', 'public-speaking', 'storytelling', 'networking', 'conflict-resolution', 'empathy', 'assertiveness', 'team-building', 'leadership', 'mentoring',
+    
+    // Technical & Digital
+    'coding', 'typing', 'video-editing', 'graphic-design', 'web-design', 'animation', 'podcasting', 'blogging', 'social-media', 'spreadsheets',
+    
+    // Life Skills
+    'time-management', 'organization', 'budgeting', 'meal-planning', 'cleaning', 'home-maintenance', 'car-maintenance', 'first-aid', 'self-care', 'boundary-setting',
+    
+    // Performance & Entertainment
+    'acting', 'improv', 'stand-up-comedy', 'magic-tricks', 'juggling', 'ventriloquism', 'mime', 'clowning', 'theater', 'film-making',
+    
+    // Outdoor & Adventure
+    'camping', 'fishing', 'bird-watching', 'stargazing', 'foraging', 'survival-skills', 'orienteering', 'geocaching', 'nature-photography', 'wildlife-tracking',
+    
+    // Games & Strategy
+    'board-games', 'card-games', 'poker', 'bridge', 'video-games', 'escape-rooms', 'trivia', 'crosswords', 'sudoku', 'rubiks-cube',
+    
+    // Health & Wellness
+    'breathing-techniques', 'stress-management', 'sleep-hygiene', 'nutrition', 'hydration', 'posture', 'ergonomics', 'massage', 'aromatherapy', 'herbalism'
+] as const;
+
+// Generate random skill suggestions
+export const getRandomSkills = (): string[] => {
+    const shuffled = [...SKILL_CATEGORIES].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, Math.floor(Math.random() * 10) + 15); // 15-25 skills
+};
+
 // Intensifier patterns for better predictions
 export const INTENSIFIER_WORDS = ['very', 'really', 'extremely', 'deeply', 'truly'] as const;
 

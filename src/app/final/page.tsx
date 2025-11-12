@@ -19,6 +19,14 @@ function FinalPageContent() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [showManualCopy, setShowManualCopy] = useState(false);
 
+  // Word count limits
+  const maxWords = 100; // Reasonable limit for the final message
+
+  // Helper function to count words
+  const getWordCount = (text: string): number => {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  };
+
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(fullMessage);
@@ -84,10 +92,10 @@ function FinalPageContent() {
             onChange={setFullMessage}
             className="w-full border mb-3 p-6"
             minHeight="80px"
-            maxLength={600}
+            maxWords={maxWords}
           />
           <div className="flex justify-between items-center text-sm text-gray-500 mb-4">
-            <span>{fullMessage.length}/600 characters</span>
+            <span>{getWordCount(fullMessage)} words (max {maxWords})</span>
             <button
               onClick={copyToClipboard}
               className="button "
