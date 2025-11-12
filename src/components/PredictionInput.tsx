@@ -22,7 +22,7 @@ const SUGGESTION_CONFIG = {
     SKILL_SUGGESTIONS_COUNT: 6,           // New category
     GENERATION_DELAY: 500,
     SUGGESTION_GENERATION_DELAY: 1000,    // One second delay for suggestion generation
-    MIN_WORD_COUNT_FOR_QUESTIONNAIRE: 7, // Minimum 7 words to show "Use this text" button
+    MIN_WORD_COUNT_FOR_QUESTIONNAIRE: 5, // Minimum 5 words to show "Use this text" button
     MAX_WORD_COUNT_FOR_QUESTIONNAIRE: 40  // Maximum 40 words to show "Use this text" button
 } as const;
 

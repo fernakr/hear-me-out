@@ -63,7 +63,7 @@ function FinalPageContent() {
       <div className="mb-4 flex justify-end">
         <StartOverButton />
       </div>
-      <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-4 ">Now the hard part.</h2>
+      <h2 className="text-2xl font-semibold text-gray-800  mb-4 ">Now the hard part.</h2>
       <div className="grid md:grid-cols-2 md:gap-5 lg:gap-10">
 
         <div className="col-span-1">
@@ -124,7 +124,7 @@ function FinalPageContent() {
 
 export default function FinalPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-gray-50  flex items-center justify-center">Loading...</div>}>
       <FinalPageContent />
     </Suspense>
   );
