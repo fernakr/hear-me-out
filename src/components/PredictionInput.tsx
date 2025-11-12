@@ -1,6 +1,35 @@
 'use client'
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+    getPatternBasedNextWords,
+    getContextualWords,
+    getRandomWords,
+    getUsedWords,
+    POS_PATTERNS,
+    INTENSIFIER_WORDS,
+    getIntensifierSuggestions
+} from '@/lib/prediction-engine';
+
+// Import wink-nlp for part-of-speech detection
+let winkNLP: typeof import('wink-nlp') | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let model: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any  
+let nlp: any = null;
+
+// Dynamically import wink-nlp only on client side
+const initializeNLP = async () => {
+    if (typeof window !== 'undefined' && !winkNLP) {
+        try {
+            winkNLP = await import('wink-nlp');
+            model = await import('wink-eng-lite-web-model');
+            nlp = winkNLP.default(model.default);
+        } catch (error) {
+            console.warn('wink-nlp not available, using basic predictions:', error);
+        }
+    }
+};
 
 export default function PredictionInput() {
     const router = useRouter();
@@ -58,22 +87,90 @@ export default function PredictionInput() {
         lifeAreas: ['music', 'art', 'creativity', 'writing', 'drawing', 'painting', 'singing', 'dancing', 'cooking', 'fitness', 'exercise', 'running', 'yoga', 'meditation', 'mindfulness', 'reading', 'learning', 'studying', 'education', 'career', 'work', 'job', 'business', 'leadership', 'management', 'communication', 'public-speaking', 'social-skills', 'relationships', 'dating', 'marriage', 'parenting', 'friendship', 'networking', 'finances', 'budgeting', 'saving', 'investing', 'organization', 'productivity', 'time-management', 'planning', 'goal-setting', 'habit-building', 'self-discipline', 'motivation', 'confidence', 'self-esteem', 'anxiety', 'depression', 'stress-management', 'anger-management', 'grief', 'trauma', 'healing', 'therapy', 'counseling', 'mental-health', 'physical-health', 'nutrition', 'sleep', 'recovery', 'addiction', 'sobriety', 'boundaries', 'assertiveness', 'conflict-resolution', 'forgiveness', 'letting-go', 'acceptance', 'change', 'transition', 'growth', 'development', 'spirituality', 'faith', 'purpose', 'meaning', 'identity', 'authenticity', 'vulnerability', 'intimacy', 'trust', 'communication', 'listening', 'empathy', 'compassion', 'kindness', 'patience', 'understanding', 'support', 'encouragement']
     }), []);
 
+    // Part-of-Speech based predictions using wink-nlp
+    const getPOSBasedPredictions = useCallback((text: string): string[] => {
+        if (!nlp || !text.trim()) return [];
+
+        try {
+            // Use cleaner word extraction
+            const words = text.trim().split(' ').filter(word => word.length > 0);
+            if (words.length === 0) return [];
+
+            const lastWord = words[words.length - 1];
+
+            // Get the part-of-speech of the last word using proper wink-nlp API
+            const lastWordDoc = nlp.readDoc(lastWord);
+            const posArray = lastWordDoc.tokens().out(lastWordDoc.its.pos);
+            const lastPOS = posArray.length > 0 ? posArray[0] : '';
+
+            // Define grammatical follow-up patterns
+            const posPatterns: Record<string, string[]> = {
+                'NOUN': ['beautiful', 'challenging', 'important', 'meaningful', 'is', 'was', 'feels', 'seems', 'helps', 'in', 'on', 'with'],
+                'ADJ': ['person', 'situation', 'experience', 'feeling', 'moment', 'very', 'really', 'quite', 'deeply'],
+                'VERB': ['deeply', 'gently', 'carefully', 'mindfully', 'myself', 'others', 'growth', 'with', 'through', 'about'],
+                'ADV': ['grateful', 'peaceful', 'hopeful', 'confident', 'calm', 'strong', 'feel', 'become', 'grow'],
+                'PRON': ['am', 'feel', 'need', 'want', 'have', 'can', 'deserve', 'understand', 'believe', 'hope'],
+                'ADP': ['the', 'my', 'this', 'difficult', 'challenging', 'peaceful', 'healing', 'support', 'time', 'people'],
+                'DET': ['difficult', 'beautiful', 'meaningful', 'important', 'moment', 'experience', 'feeling', 'person'],
+                'CCONJ': ['I', 'life', 'growth', 'healing', 'love', 'peace', 'understanding', 'acceptance']
+            };
+
+            // Enhanced pattern for intensifiers
+            if (['very', 'really', 'extremely', 'deeply', 'truly'].includes(lastWord.toLowerCase())) {
+                return ['grateful', 'peaceful', 'hopeful', 'confident', 'aware', 'calm', 'strong', 'tired', 'overwhelmed', 'anxious'];
+            }
+
+            return posPatterns[lastPOS] || [];
+        } catch (error) {
+            console.warn('POS analysis failed:', error);
+            return [];
+        }
+    }, []);
+
 
 
     // Simplified pattern-based next word prediction - focus on most essential patterns only
     const getPatternBasedNextWords = useCallback((text: string): string[] => {
-        // Only keep the most fundamental sentence starters and essential connectors
-        if (text.endsWith(' I')) {
-            return ['feel', 'am', 'need', 'want'];
-        }
-        if (text.endsWith(' feel') || text.endsWith(' felt')) {
-            return ['like', 'that', 'really'];
-        }
-        if (text.endsWith(' need') || text.endsWith(' want')) {
-            return ['to', 'help', 'support'];
+        const trimmedText = text.trim();
+        if (!trimmedText) return ['and', 'but', 'because'];
+
+        // Split on spaces and get the last word for cleaner pattern matching
+        const words = trimmedText.split(' ');
+        const lastWord = words[words.length - 1]?.toLowerCase() || '';
+
+        // Handle "I" as the last word (either standalone or after other words)
+        if (lastWord === 'i') {
+            // Lock in the most common therapeutic starter verbs after "I"
+            return ['feel', 'am', 'need', 'want', 'have', 'can', 'believe', 'hope', 'think', 'know'];
         }
 
-        // Default essential connectors only
+        // Handle specific verb patterns
+        if (lastWord === 'feel' || lastWord === 'felt') {
+            return ['like', 'that', 'really', 'so', 'very', 'deeply', 'truly', 'completely', 'overwhelmed', 'peaceful', 'grateful', 'anxious', 'calm', 'strong'];
+        }
+        if (lastWord === 'need' || lastWord === 'want') {
+            return ['to', 'help', 'support', 'understanding', 'healing', 'peace', 'growth', 'love', 'acceptance', 'validation'];
+        }
+        if (lastWord === 'am' || lastWord === 'was') {
+            return ['feeling', 'being', 'learning', 'growing', 'healing', 'grateful', 'peaceful', 'anxious', 'overwhelmed', 'strong', 'tired', 'hopeful'];
+        }
+        if (lastWord === 'very' || lastWord === 'really' || lastWord === 'extremely') {
+            return ['grateful', 'peaceful', 'hopeful', 'confident', 'aware', 'present', 'calm', 'strong', 'tired', 'overwhelmed', 'anxious', 'stressed', 'proud', 'happy'];
+        }
+        if (lastWord === 'have' || lastWord === 'had') {
+            return ['been', 'felt', 'experienced', 'learned', 'grown', 'struggled', 'overcome', 'difficulty', 'support', 'love', 'peace'];
+        }
+        if (lastWord === 'can') {
+            return ['feel', 'be', 'do', 'learn', 'grow', 'heal', 'change', 'overcome', 'understand', 'accept', 'forgive'];
+        }
+        if (lastWord === 'believe' || lastWord === 'think' || lastWord === 'know') {
+            return ['that', 'I', 'this', 'it', 'deeply', 'truly', 'strongly'];
+        }
+        if (lastWord === 'hope') {
+            return ['that', 'to', 'for', 'I', 'this', 'things', 'life'];
+        }
+
+        // Default essential connectors
         return ['and', 'but', 'because'];
     }, []);
 
@@ -188,7 +285,7 @@ export default function PredictionInput() {
         return new Set(recentWords);
     }, []);
 
-    // Main prediction logic
+    // Main prediction logic - now enhanced with POS analysis
     const generateSuggestions = useCallback((text: string, currentPreviousSuggestions: string[] = []) => {
         const trimmedText = text.trim();
         if (trimmedText.length < 1) {
@@ -213,6 +310,10 @@ export default function PredictionInput() {
             const patternSuggestions = getPatternBasedNextWords(text)
                 .filter(word => !wordsToAvoid.has(word.toLowerCase()));
 
+            // Get POS-based suggestions (new enhanced feature)
+            const posSuggestions = getPOSBasedPredictions(text)
+                .filter(word => !wordsToAvoid.has(word.toLowerCase()));
+
             // Get contextual therapeutic words - filter during generation  
             const contextualWords = getContextualWords(text)
                 .filter(word => !wordsToAvoid.has(word.toLowerCase()));
@@ -221,8 +322,14 @@ export default function PredictionInput() {
             const randomWords = getRandomWords()
                 .filter(word => !wordsToAvoid.has(word.toLowerCase()));
 
-            // Combine all suggestions - prioritize pattern suggestions first, then contextual, then random
-            const allSuggestions = [...patternSuggestions, ...contextualWords, ...randomWords];
+            // Combine all suggestions - prioritize pattern suggestions first, then POS, then contextual, then random
+            // Give pattern suggestions more weight by taking more of them first
+            const prioritizedPatterns = patternSuggestions.slice(0, 8); // Take up to 8 pattern suggestions
+            const prioritizedPOS = posSuggestions.slice(0, 4); // Take up to 4 POS suggestions
+            const prioritizedContextual = contextualWords.slice(0, 2); // Take fewer contextual to make room
+            const prioritizedRandom = randomWords.slice(0, 1); // Take very few random words
+
+            const allSuggestions = [...prioritizedPatterns, ...prioritizedPOS, ...prioritizedContextual, ...prioritizedRandom];
 
             // Remove duplicates and take exactly 15 suggestions
             const uniqueSuggestions = allSuggestions
@@ -246,7 +353,7 @@ export default function PredictionInput() {
 
             setIsGenerating(false);
         }, 200);
-    }, [getPatternBasedNextWords, getContextualWords, getRandomWords, getUsedWords]);
+    }, [getPatternBasedNextWords, getPOSBasedPredictions, getContextualWords, getRandomWords, getUsedWords]);
 
     // Handle input changes
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -302,6 +409,11 @@ export default function PredictionInput() {
             generateSuggestions(inputText, previousSuggestions);
         }
     }, [hasInitialized, inputText, generateSuggestions, previousSuggestions]);
+
+    // Initialize NLP library
+    React.useEffect(() => {
+        initializeNLP();
+    }, []);
 
     // Handle sending text to questionnaire
     const handleSendToQuestionnaire = useCallback(() => {
