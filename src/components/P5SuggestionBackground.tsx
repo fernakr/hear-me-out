@@ -54,8 +54,8 @@ export default function P5SuggestionBackground({
         };
 
         p.draw = () => {
-          // Create a subtle background
-          p.background(250, 251, 252); // Very light background
+          // Transparent background to let the halftone layer show through
+          p.clear();
           
           // Use current suggestions from refs
           const currentSuggestions = suggestionsRef.current;
@@ -123,6 +123,8 @@ export default function P5SuggestionBackground({
           });
 
           // Update and draw floating suggestions with collision avoidance
+          let isAnyWordHovered = false;
+          
           floatingSuggestions.forEach((suggestion, index) => {
             // Update position
             let newX = suggestion.x + suggestion.vx;
@@ -172,6 +174,11 @@ export default function P5SuggestionBackground({
             p.textSize(suggestion.size); // Set size to measure text width
             const textWidth = p.textWidth(suggestion.word);
             suggestion.hovered = mouseDistance < Math.max(textWidth / 2 + 10, 35);
+            
+            // Track if any word is being hovered
+            if (suggestion.hovered) {
+              isAnyWordHovered = true;
+            }
 
             // Gentle floating effect - slower
             const floatOffset = p.sin(p.millis() * 0.001 + index * 0.1) * 2; // Slower and smaller offset
@@ -206,6 +213,13 @@ export default function P5SuggestionBackground({
             // Draw the text
             p.text(suggestion.word, suggestion.x, drawY);
           });
+          
+          // Change cursor based on hover state
+          if (isAnyWordHovered) {
+            document.body.style.cursor = 'pointer';
+          } else {
+            document.body.style.cursor = 'default';
+          }
 
           // Reset shadow
           p.drawingContext.shadowBlur = 0;
@@ -259,6 +273,8 @@ export default function P5SuggestionBackground({
         p5InstanceRef.current.remove();
         p5InstanceRef.current = null;
       }
+      // Reset cursor when component unmounts
+      document.body.style.cursor = 'default';
     };
   }, []); // Empty dependency array - only run once
 

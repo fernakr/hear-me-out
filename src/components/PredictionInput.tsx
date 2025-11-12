@@ -1,7 +1,9 @@
 'use client'
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import P5Background from './P5Background';
 import P5SuggestionBackground from './P5SuggestionBackground';
+import StartOverButton from './StartOverButton';
 import {
     getPatternBasedNextWords,
     getContextualWords,
@@ -234,12 +236,20 @@ export default function PredictionInput() {
 
     return (
         <>
+            {/* Ocean wave halftone background layer */}
+            <P5Background />
+            {/* Floating text suggestions layer on top */}
             <P5SuggestionBackground 
                 suggestions={suggestions}
                 previousSuggestions={previousSuggestions}
                 onSuggestionClick={applySuggestion}
             />
             <div className="p-5 w-full max-w-3xl mx-auto content-container flex flex-col items-center text-center">
+                {/* Back button */}
+                <div className="w-full flex justify-end mb-8">
+                    <StartOverButton text="Back to Home" />
+                </div>
+                
                 <h2 className="text-xl font-bold mb-4">Start typing or click on the floating words around the screen if you are struggling to come up with what you want to work on.</h2>
 
             <div className="relative w-full">
@@ -300,11 +310,9 @@ export default function PredictionInput() {
 
             {/* Instructions for the floating suggestions */}
             <div className="text-center text-sm text-gray-600 mt-4">
-                {isGenerating ? (
+                {isGenerating && (
                     <span>Generating floating suggestions...</span>
-                ) : (
-                    <span>Click on the floating words around the screen to add them to your text</span>
-                )}
+                ) }
             </div>
         </div>
         </>

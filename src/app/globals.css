@@ -28,7 +28,7 @@ body {
 
 /* Content containers should have backgrounds for readability */
 .content-container {
-  @apply bg-white/90 backdrop-blur-sm rounded-lg shadow-sm border border-gray-200/50;
+  @apply bg-white/60 backdrop-blur-sm ;
 }
 
 /* Dark mode support for content containers */
