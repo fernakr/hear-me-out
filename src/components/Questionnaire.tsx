@@ -142,7 +142,7 @@ export default function Questionnaire() {
             <div className="lg:py-10">
                 <label htmlFor="answer" className="md:text-2xl lg:text-3xl mb-3">{currentQuestion.text}</label>
                 {currentQuestion.subtext && (
-                    <p className="mb-4 text-gray-600">{currentQuestion.subtext}</p>
+                    <p className="mb-4 text-gray-600 font-bold">{currentQuestion.subtext}</p>
                 )}
 
                 <AutoResizeTextarea

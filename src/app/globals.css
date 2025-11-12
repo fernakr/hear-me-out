@@ -13,12 +13,12 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
@@ -35,13 +35,13 @@ a {
   }
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   a {
     @apply text-yellow-200;
 
 
   }
-}
+} */
 
 
 
@@ -67,7 +67,7 @@ a {
 }
 
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
 
   .button {
     @apply text-yellow-200;
@@ -84,7 +84,7 @@ a {
       }
     }
   }
-}
+} */
 
 label {
   @apply block mb-4 font-bold;
@@ -99,8 +99,8 @@ textarea {
   /* min-height: 100px; */
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   textarea {
     @apply border-yellow-600;
   }
-}
+} */
