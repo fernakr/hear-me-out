@@ -132,9 +132,9 @@ export default function Questionnaire() {
 
     return (
         <div className="w-full max-w-4xl content-container p-8">
-            <div className="flex justify-between mb-8 gap-3">
+            <div className="flex justify-between mb-8 gap-3 text-gray-400 text-sm">
 
-                <span><span className="hidden lg:inline">Question </span>{questionIndex + 1} of {questions.length}</span>
+                <span><span className="hidden lg:inline ">Question </span>{questionIndex + 1} of {questions.length}</span>
                 {questionIndex > 0 ? <StartOverButton /> : <a href="/help" className="nav-link">Need help figuring out what this is?</a>}
             </div>
 
@@ -142,7 +142,7 @@ export default function Questionnaire() {
             <div className="lg:py-10">
                 <label htmlFor="answer" className="question-text md:text-2xl lg:text-3xl mb-3">{currentQuestion.text}</label>
                 {currentQuestion.subtext && (
-                    <p className="mb-4 text-gray-600 font-bold">{currentQuestion.subtext}</p>
+                    <p className="tracking-wide mb-4 text-gray-500">{currentQuestion.subtext}</p>
                 )}
 
                 <AutoResizeTextarea
@@ -152,7 +152,7 @@ export default function Questionnaire() {
                     onChange={updateResponse}
                     minWords={minWords}
                     maxWords={maxWords}
-                    placeholder="Type your response here... (Required)"
+                    placeholder="Type your response here..."
                     required
                 />
                 <div className="flex justify-between mt-2 text-sm text-gray-500">

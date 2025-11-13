@@ -9,16 +9,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-pangolin);
-  --font-serif: var(--font-poppins);
-  --font-mono: var(--font-geist-mono);
 }
-
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-} */
 
 body {
   background: transparent;
@@ -32,12 +23,6 @@ body {
   @apply bg-white/60 backdrop-blur-sm;
 }
 
-/* Dark mode support for content containers */
-/* @media (prefers-color-scheme: dark) {
-  .content-container {
-    @apply bg-gray-900/90 border-gray-700/50;
-  }
-} */
 
 a {
   @apply text-blue-600 underline;
@@ -47,14 +32,6 @@ a {
     @apply no-underline;
   }
 }
-
-/* @media (prefers-color-scheme: dark) {
-  a {
-    @apply text-yellow-200;
-
-
-  }
-} */
 
 
 
@@ -79,25 +56,6 @@ a {
   }
 }
 
-
-/* @media (prefers-color-scheme: dark) {
-
-  .button {
-    @apply text-yellow-200;
-
-    &:not(:disabled) {
-      @apply hover:bg-yellow-200 hover:text-black;
-    }
-
-    &.final {
-      @apply bg-yellow-200 text-black;
-
-      &:not(:disabled) {
-        @apply hover:bg-yellow-700;
-      }
-    }
-  }
-} */
 
 label {
   @apply block mb-4 font-bold;
@@ -125,10 +83,8 @@ h6 {
 
 /* Navigation links styling */
 .nav-link {
-  @apply text-blue-600 underline hover:no-underline text-sm;
-  /* font-size: 0.875rem; */
-  /* color: #4b5563; */
-  /* text-decoration: underline; */
+  @apply text-blue-600 underline hover:no-underline text-sm tracking-wide;
+
   text-underline-offset: 0.2em;
   transition: color 0.2s ease-in-out;
 }
