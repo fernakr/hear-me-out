@@ -135,12 +135,12 @@ export default function Questionnaire() {
             <div className="flex justify-between mb-8 gap-3">
 
                 <span><span className="hidden lg:inline">Question </span>{questionIndex + 1} of {questions.length}</span>
-                {questionIndex > 0 ? <StartOverButton /> : <a href="/help" className="text-sm underline">Need help figuring out what this is?</a>}
+                {questionIndex > 0 ? <StartOverButton /> : <a href="/help" className="nav-link">Need help figuring out what this is?</a>}
             </div>
 
 
             <div className="lg:py-10">
-                <label htmlFor="answer" className="md:text-2xl lg:text-3xl mb-3">{currentQuestion.text}</label>
+                <label htmlFor="answer" className="question-text md:text-2xl lg:text-3xl mb-3">{currentQuestion.text}</label>
                 {currentQuestion.subtext && (
                     <p className="mb-4 text-gray-600 font-bold">{currentQuestion.subtext}</p>
                 )}

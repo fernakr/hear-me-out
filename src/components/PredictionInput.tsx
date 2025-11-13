@@ -28,14 +28,14 @@ const SUGGESTION_CONFIG = {
 
 export default function PredictionInput() {
     const router = useRouter();
-    
+
     // State management
     const [inputText, setInputText] = useState<string>('I ');
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [previousSuggestions, setPreviousSuggestions] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [hasInitialized, setHasInitialized] = useState<boolean>(false);
-    
+
     // Refs
     const suggestionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -56,11 +56,11 @@ export default function PredictionInput() {
         const filteredPatterns = patternSuggestions
             .filter((word: string) => !wordsToAvoid.has(word.toLowerCase()))
             .slice(0, SUGGESTION_CONFIG.PATTERN_SUGGESTIONS_COUNT);
-            
+
         const filteredContextual = contextualWords
             .filter((word: string) => !wordsToAvoid.has(word.toLowerCase()))
             .slice(0, SUGGESTION_CONFIG.CONTEXTUAL_SUGGESTIONS_COUNT);
-            
+
         const filteredRandom = randomWords
             .filter((word: string) => !wordsToAvoid.has(word.toLowerCase()))
             .slice(0, SUGGESTION_CONFIG.RANDOM_SUGGESTIONS_COUNT);
@@ -71,7 +71,7 @@ export default function PredictionInput() {
 
         // Combine all suggestions
         const allSuggestions = [...filteredPatterns, ...filteredContextual, ...filteredRandom, ...filteredSkills];
-        
+
         // Remove duplicates
         const uniqueSuggestions = allSuggestions
             .filter((word, index, arr) => arr.indexOf(word) === index);
@@ -82,7 +82,7 @@ export default function PredictionInput() {
             const shuffled = [...uniqueSuggestions].sort(() => 0.5 - Math.random());
             return shuffled.slice(0, SUGGESTION_CONFIG.CURRENT_SUGGESTIONS_LIMIT);
         }
-        
+
         // If we have fewer suggestions, return all of them
         return uniqueSuggestions;
     }, []);
@@ -239,7 +239,7 @@ export default function PredictionInput() {
             {/* Ocean wave halftone background layer */}
             <P5Background />
             {/* Floating text suggestions layer on top */}
-            <P5SuggestionBackground 
+            <P5SuggestionBackground
                 suggestions={suggestions}
                 previousSuggestions={previousSuggestions}
                 onSuggestionClick={applySuggestion}
@@ -249,72 +249,72 @@ export default function PredictionInput() {
                 <div className="w-full flex justify-end mb-8">
                     <StartOverButton text="Back to Home" />
                 </div>
-                
+
                 <h2 className="text-xl font-bold mb-4">Start typing or click on the floating words around the screen if you are struggling to come up with what you want to work on.</h2>
 
-            <div className="relative w-full">
-                <textarea
-                    id="input-text"
-                    rows={4}
-                    value={inputText}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Start typing a sentence..."
-                    className={`w-full text-lg mb-4 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
-                        ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-950'
-                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'
-                        } text-gray-900 dark:text-gray-100`}
-                    aria-label="Text input for therapeutic writing with suggestions"
-                    aria-describedby="suggestions-container"
-                />
-                {isGenerating && (
-                    <div className="absolute top-2 right-2 pointer-events-none" aria-hidden="true">
-                        <div className="w-3 h-3 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse opacity-60"></div>
-                    </div>
-                )}
-            </div>
-
-            {/* Word count and requirements display */}
-            <div className="flex justify-center items-center gap-8 mt-2 text-sm text-gray-500 mb-4">
-                <span>{getWordCount(inputText)} words</span>
-                <span>
-                    {(() => {
-                        const wordCount = getWordCount(inputText);
-                        if (wordCount < SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE) {
-                            return `Need ${SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE - wordCount} more words to continue`;
-                        } else if (wordCount > SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE) {
-                            return `${wordCount - SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE} words over limit`;
-                        } else {
-                            return '✓ Ready for questionnaire';
-                        }
-                    })()}
-                </span>
-            </div>
-
-            {/* Send to Questionnaire Button */}
-            {(() => {
-                const wordCount = getWordCount(inputText);
-                return wordCount >= SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE && 
-                       wordCount <= SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE;
-            })() && (
-                <div className="mb-4 flex justify-center">
-                    <button
-                        onClick={handleSendToQuestionnaire}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                        aria-label="Use this text to start the questionnaire"
-                    >
-                        Use this text to start questionnaire →
-                    </button>
+                <div className="relative w-full">
+                    <textarea
+                        id="input-text"
+                        rows={4}
+                        value={inputText}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Start typing a sentence..."
+                        className={`w-full text-lg mb-4 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
+                            ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-950'
+                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'
+                            } text-gray-900 dark:text-gray-100`}
+                        aria-label="Text input for therapeutic writing with suggestions"
+                        aria-describedby="suggestions-container"
+                    />
+                    {isGenerating && (
+                        <div className="absolute top-2 right-2 pointer-events-none" aria-hidden="true">
+                            <div className="w-3 h-3 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse opacity-60"></div>
+                        </div>
+                    )}
                 </div>
-            )}
 
-            {/* Instructions for the floating suggestions */}
-            <div className="text-center text-sm text-gray-600 mt-4">
-                {isGenerating && (
-                    <span>Generating floating suggestions...</span>
-                ) }
+                {/* Word count and requirements display */}
+                <div className="flex justify-between items-stretch gap-8 mt-2 text-sm text-gray-500 mb-4">
+                    <span>{getWordCount(inputText)} words</span>
+                    <span>
+                        {(() => {
+                            const wordCount = getWordCount(inputText);
+                            if (wordCount < SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE) {
+                                return `Need ${SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE - wordCount} more words to continue`;
+                            } else if (wordCount > SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE) {
+                                return `${wordCount - SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE} words over limit`;
+                            } else {
+                                return '✓ Ready for questionnaire';
+                            }
+                        })()}
+                    </span>
+                </div>
+
+                {/* Send to Questionnaire Button */}
+                {(() => {
+                    const wordCount = getWordCount(inputText);
+                    return wordCount >= SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE &&
+                        wordCount <= SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE;
+                })() && (
+                        <div className="mb-4 flex justify-center">
+                            <button
+                                onClick={handleSendToQuestionnaire}
+                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                                aria-label="Use this text to start the questionnaire"
+                            >
+                                Use this text to start questionnaire →
+                            </button>
+                        </div>
+                    )}
+
+                {/* Instructions for the floating suggestions */}
+                <div className="text-center text-sm text-gray-600 mt-4">
+                    {isGenerating && (
+                        <span>Generating floating suggestions...</span>
+                    )}
+                </div>
             </div>
-        </div>
         </>
     );
 }

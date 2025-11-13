@@ -7,14 +7,14 @@ interface StartOverButtonProps {
   text?: string;
 }
 
-export default function StartOverButton({ 
-  className = '', 
-  text = 'Start Over' 
+export default function StartOverButton({
+  className = '',
+  text = 'Start Over'
 }: StartOverButtonProps) {
   return (
-    <Link 
-      href="/" 
-      className={`hover:underline ${className}`}
+    <Link
+      href="/"
+      className={`nav-link font-bold ${className}`}
     >
       ← {text}
     </Link>

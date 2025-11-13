@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-atkinson-hyperlegible-mono);
+  --font-sans: var(--font-pangolin);
   --font-serif: var(--font-poppins);
   --font-mono: var(--font-geist-mono);
 }
@@ -21,14 +21,15 @@
 } */
 
 body {
-  background: transparent; /* Let the p5 background show through */
+  background: transparent;
+  /* Let the p5 background show through */
   color: var(--foreground);
-  font-family: var(--font-atkinson-hyperlegible-mono), system-ui, sans-serif;
+  font-family: var(--font-pangolin), system-ui, sans-serif;
 }
 
 /* Content containers should have backgrounds for readability */
 .content-container {
-  @apply bg-white/60 backdrop-blur-sm ;
+  @apply bg-white/60 backdrop-blur-sm;
 }
 
 /* Dark mode support for content containers */
@@ -111,8 +112,23 @@ textarea {
   /* min-height: 100px; */
 }
 
-/* @media (prefers-color-scheme: dark) {
-  textarea {
-    @apply border-yellow-600;
-  }
-} */
+/* Question text and headings styling */
+.question-text,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-yomogi), system-ui, sans-serif;
+}
+
+/* Navigation links styling */
+.nav-link {
+  @apply text-blue-600 underline hover:no-underline text-sm;
+  /* font-size: 0.875rem; */
+  /* color: #4b5563; */
+  /* text-decoration: underline; */
+  text-underline-offset: 0.2em;
+  transition: color 0.2s ease-in-out;
+}

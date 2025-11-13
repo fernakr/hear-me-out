@@ -1,11 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Atkinson_Hyperlegible_Mono, Poppins } from "next/font/google";
+import { Yomogi, Pangolin, Poppins, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientBackground from "@/components/ClientBackground";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const yomogi = Yomogi({
+  variable: "--font-yomogi",
   subsets: ["latin"],
+  weight: "400",
+});
+
+const pangolin = Pangolin({
+  variable: "--font-pangolin",
+  subsets: ["latin"],
+  weight: "400",
+});
+
+const poppins = Poppins({
+  variable: "--font-poppins",
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -13,19 +26,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Accessible, clean font for body text
-const atkinsonHyperlegibleMono = Atkinson_Hyperlegible_Mono({
-  variable: "--font-atkinson-hyperlegible-mono",
-  weight: ["400", "700"],
-  subsets: ["latin"],
-});
-
-// Modern, friendly font for headings
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "Hear Me Out",
@@ -40,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${atkinsonHyperlegibleMono.variable} ${poppins.variable} antialiased py-5 px-8 flex min-h-screen items-center justify-center`}
+        className={`${yomogi.variable} ${pangolin.variable} ${poppins.variable} ${geistMono.variable} antialiased py-5 px-8 flex min-h-screen items-center justify-center`}
       >
         <ClientBackground />
         {children}
