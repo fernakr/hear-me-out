@@ -244,7 +244,7 @@ export default function PredictionInput() {
                 previousSuggestions={previousSuggestions}
                 onSuggestionClick={applySuggestion}
             />
-            <div className="p-5 w-full max-w-3xl mx-auto content-container flex flex-col items-center text-center">
+            <div className="p-8 w-full max-w-3xl mx-auto content-container flex flex-col items-center text-center">
                 {/* Back button */}
                 <div className="w-full flex justify-end mb-8">
                     <StartOverButton text="Back to Home" />
@@ -275,7 +275,7 @@ export default function PredictionInput() {
                 </div>
 
                 {/* Word count and requirements display */}
-                <div className="flex justify-between items-stretch gap-8 mt-2 text-sm text-gray-500 mb-4">
+                <div className="flex justify-between items-stretch gap-8 mt-2 text-sm text-gray-500">
                     <span>{getWordCount(inputText)} words</span>
                     <span>
                         {(() => {
@@ -297,7 +297,7 @@ export default function PredictionInput() {
                     return wordCount >= SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE &&
                         wordCount <= SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE;
                 })() && (
-                        <div className="mb-4 flex justify-center">
+                        <div className="flex justify-center">
                             <button
                                 onClick={handleSendToQuestionnaire}
                                 className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
@@ -309,11 +309,11 @@ export default function PredictionInput() {
                     )}
 
                 {/* Instructions for the floating suggestions */}
-                <div className="text-center text-sm text-gray-600 mt-4">
+                {/* <div className="text-center text-sm text-gray-600">
                     {isGenerating && (
                         <span>Generating floating suggestions...</span>
                     )}
-                </div>
+                </div> */}
             </div>
         </>
     );
