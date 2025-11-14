@@ -21,7 +21,7 @@ body {
 /* Content containers with seamless radial gradient using ::before element */
 .content-container {
   position: relative;
-  padding: 2rem;
+  padding: 0;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: none;

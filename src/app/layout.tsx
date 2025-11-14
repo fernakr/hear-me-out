@@ -41,7 +41,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${yomogi.variable} ${pangolin.variable} ${poppins.variable} ${geistMono.variable} antialiased py-5 px-8 flex min-h-screen items-center justify-center`}
+        className={`${yomogi.variable} ${pangolin.variable} ${poppins.variable} ${geistMono.variable} antialiased py-5 px-4 lg:px-8 flex min-h-screen items-center justify-center`}
       >
         <MotionProvider>
           <LayoutClient>

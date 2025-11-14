@@ -132,7 +132,7 @@ export default function Questionnaire() {
 
     return (
         <div className="w-full max-w-4xl content-container p-8">
-            <div className="flex justify-between mb-8 gap-3 text-gray-400 text-sm">
+            <div className="flex justify-between mb-8 gap-3 text-gray-400 text-sm font-bold">
 
                 <span><span className="hidden lg:inline ">Question </span>{questionIndex + 1} of {questions.length}</span>
                 {questionIndex > 0 ? <StartOverButton /> : <a href="/help" className="nav-link">Need help figuring out what this is?</a>}

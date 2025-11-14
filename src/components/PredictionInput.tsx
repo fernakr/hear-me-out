@@ -257,7 +257,7 @@ export default function PredictionInput() {
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Start typing a sentence..."
-                        className={`w-full text-lg mb-4 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
+                        className={`w-full text-lg mb-3 p-3 border rounded-md resize-y transition-all duration-200 ${isGenerating
                             ? 'border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-950'
                             : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900'
                             } text-gray-900 dark:text-gray-100`}
@@ -272,7 +272,7 @@ export default function PredictionInput() {
                 </div>
 
                 {/* Word count and requirements display */}
-                <div className="flex justify-between items-stretch gap-8 mt-2 text-sm text-gray-500">
+                <div className="flex justify-between items-stretch gap-8 text-sm text-gray-500">
                     <span>{getWordCount(inputText)} words</span>
                     <span>
                         {(() => {
@@ -297,7 +297,7 @@ export default function PredictionInput() {
                         <div className="flex justify-center">
                             <button
                                 onClick={handleSendToQuestionnaire}
-                                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                                className="mt-5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
                                 aria-label="Use this text to start the questionnaire"
                             >
                                 Use this text to start questionnaire →
