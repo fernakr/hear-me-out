@@ -25,15 +25,13 @@ body {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: none;
+  /* overflow: hidden; */
 }
 
 .content-container::before {
   content: '';
   position: absolute;
-  top: -80px;
-  left: -80px;
-  right: -80px;
-  bottom: -80px;
+
   background: radial-gradient(ellipse at center,
       rgba(255, 255, 255, 0.95) 0%,
       rgba(255, 255, 255, 0.9) 30%,
@@ -44,6 +42,14 @@ body {
       transparent 90%);
   z-index: -1;
   pointer-events: none;
+  inset: -10px;
+
+  @media (min-width: 640px) {
+    top: -80px;
+    left: -80px;
+    right: -80px;
+    bottom: -80px;
+  }
 }
 
 
@@ -109,3 +115,8 @@ h6 {
 }
 
 @import "tailwindcss";
+/* 
+canvas {
+  height: 100% !important;
+  width: 100% !important;
+} */
