@@ -80,10 +80,6 @@ a {
 }
 
 
-label {
-  @apply block mb-4 font-bold;
-}
-
 p {
   @apply mb-4;
 }
@@ -111,3 +107,5 @@ h6 {
   text-underline-offset: 0.2em;
   transition: color 0.2s ease-in-out;
 }
+
+@import "tailwindcss";

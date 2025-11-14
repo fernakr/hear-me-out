@@ -1,7 +1,6 @@
 'use client'
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import P5Background from './P5Background';
 import P5SuggestionBackground from './P5SuggestionBackground';
 import StartOverButton from './StartOverButton';
 import {
@@ -236,8 +235,6 @@ export default function PredictionInput() {
 
     return (
         <>
-            {/* Ocean wave halftone background layer */}
-            <P5Background />
             {/* Floating text suggestions layer on top */}
             <P5SuggestionBackground
                 suggestions={suggestions}
@@ -250,7 +247,7 @@ export default function PredictionInput() {
                     <StartOverButton text="Back to Home" />
                 </div>
 
-                <h2 className="text-xl font-bold mb-4">Start typing or click on the floating words around the screen if you are struggling to come up with what you want to work on.</h2>
+                <label for="input-text" className="block mb-4 text-xl font-bold mb-4">Start typing or click on the floating words around the screen if you are struggling to come up with what you want to work on.</label>
 
                 <div className="relative w-full">
                     <textarea

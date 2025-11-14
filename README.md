@@ -8,6 +8,21 @@ A therapeutic Next.js 16 app that guides users through introspective questionnai
 - **Pattern-Based Text Prediction**: Intelligent word suggestions using therapeutic vocabulary and sentence patterns
 - **Message Creation**: Transform reflections into personalized encouragement messages
 - **QR Code Sharing**: Generate QR codes for trusted contacts to leave voice memos
+- **Accessibility & Motion Control**: Comprehensive reduced motion support with persistent user preferences
+
+## Accessibility Features
+
+### Reduced Motion Support
+The app includes comprehensive accessibility features for users who prefer reduced motion:
+
+- **Smart Motion Toggle**: Clean lightswitch-style toggle in the top-right corner
+- **Persistent Preferences**: Motion settings are saved in localStorage and maintained across all pages
+- **Graceful Degradation**: When reduced motion is enabled:
+  - Background animations freeze while maintaining visual appeal
+  - Floating word suggestions remain clickable but stop moving
+  - All interactive elements remain fully functional
+- **Respect System Preferences**: Automatically detects and respects the user's system-level `prefers-reduced-motion` setting
+- **No Functionality Loss**: All therapeutic features work identically regardless of motion settings
 
 ## Getting Started
 
@@ -25,6 +40,58 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - **Pattern-Based Predictions**: No external ML dependencies - uses curated therapeutic word sets
 - **Client-Side Only**: Fully browser-based with no backend requirements
 - **Therapeutic Focus**: 9 categories of therapeutic vocabulary for intelligent suggestions
+- **Accessibility-First**: Motion preferences managed via React Context with localStorage persistence
+- **P5.js Backgrounds**: Animated halftone ocean backgrounds that respect motion preferences
+
+### Motion Management System
+
+The app uses a sophisticated motion management system built on React Context:
+
+```typescript
+// Core motion context provides app-wide state
+MotionProvider -> useMotion() hook -> MotionToggle component
+
+// Background components respect motion state
+P5Background: Freezes wave animation when motion is reduced
+P5SuggestionBackground: Disables floating and collision physics
+```
+
+**Key Components:**
+- `MotionContext`: Global state management for motion preferences
+- `MotionToggle`: Lightswitch-style UI component with persistence
+- `useReducedMotion`: Custom hook managing localStorage + system preferences
+- `LayoutClient`: Wraps all pages with consistent motion-aware backgrounds
+
+## Development Guidelines
+
+### Adding Motion-Aware Components
+
+When creating new animated components, always respect the motion context:
+
+```typescript
+import { useMotion } from '@/components/MotionContext';
+
+function MyAnimatedComponent() {
+  const { reducedMotion } = useMotion();
+  
+  // Disable animations when reducedMotion is true
+  const animationSpeed = reducedMotion ? 0 : 1;
+  
+  return <div className={`transition-transform ${!reducedMotion && 'animate-pulse'}`} />;
+}
+```
+
+### Motion-Responsive Styling
+
+Use conditional styling for motion-sensitive animations:
+
+```typescript
+// Good: Respects user preference
+const floatOffset = !reducedMotion ? Math.sin(time) * 2 : 0;
+
+// Good: Conditional CSS classes  
+className={`transform transition-all ${!reducedMotion && 'hover:scale-105'}`}
+```
 
 ## Learn More
 

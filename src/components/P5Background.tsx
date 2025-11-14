@@ -1,10 +1,16 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useMotion } from './MotionContext';
 
 export default function P5Background() {
   const containerRef = useRef<HTMLDivElement>(null);
   const p5InstanceRef = useRef<any>(null);
+  const { reducedMotion } = useMotion();
+  const reducedMotionRef = useRef<boolean>(reducedMotion);
+
+  // Update ref when reducedMotion changes
+  reducedMotionRef.current = reducedMotion;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -12,7 +18,7 @@ export default function P5Background() {
     // Dynamically import p5 to avoid SSR issues
     const loadP5 = async () => {
       const p5 = (await import('p5')).default;
-      
+
       const sketch = (p: any) => {
         let time = 0;
         let waveShader: any;
@@ -134,7 +140,7 @@ export default function P5Background() {
 
         p.setup = () => {
           canvas = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
-          
+
           // Create shader
           waveShader = p.createShader(vertSource, fragSource);
         };
@@ -142,16 +148,19 @@ export default function P5Background() {
         p.draw = () => {
           // Use the shader
           p.shader(waveShader);
-          
-          // Pass uniforms to shader
-          waveShader.setUniform('u_time', time * 0.02);
+
+          // Pass uniforms to shader - only increment time if motion is not reduced
+          const currentTime = reducedMotionRef.current ? 0 : time * 0.02;
+          waveShader.setUniform('u_time', currentTime);
           waveShader.setUniform('u_resolution', [p.width, p.height]);
-          
+
           // Draw a rectangle that covers the entire canvas
-          p.rect(-p.width/2, -p.height/2, p.width, p.height);
-          
-          // Increment time
-          time++;
+          p.rect(-p.width / 2, -p.height / 2, p.width, p.height);
+
+          // Increment time only if motion is not reduced
+          if (!reducedMotionRef.current) {
+            time++;
+          }
         };
 
         p.windowResized = () => {
@@ -177,8 +186,8 @@ export default function P5Background() {
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="fixed inset-0 -z-10 pointer-events-none"
       style={{ zIndex: -1 }}
     />

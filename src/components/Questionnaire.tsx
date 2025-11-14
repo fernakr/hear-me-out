@@ -140,7 +140,7 @@ export default function Questionnaire() {
 
 
             <div className="lg:py-10">
-                <label htmlFor="answer" className="question-text md:text-2xl lg:text-3xl mb-3">{currentQuestion.text}</label>
+                <label htmlFor="answer" className="block mb-4 font-bold question-text md:text-2xl lg:text-3xl mb-3">{currentQuestion.text}</label>
                 {currentQuestion.subtext && (
                     <p className="tracking-wide mb-4 text-gray-500">{currentQuestion.subtext}</p>
                 )}

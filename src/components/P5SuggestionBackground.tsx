@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useMotion } from './MotionContext';
 
 interface FloatingSuggestion {
   word: string;
@@ -30,11 +31,14 @@ export default function P5SuggestionBackground({
   const suggestionsRef = useRef<string[]>([]);
   const previousSuggestionsRef = useRef<string[]>([]);
   const onSuggestionClickRef = useRef<(word: string) => void>(onSuggestionClick);
+  const { reducedMotion } = useMotion();
+  const reducedMotionRef = useRef<boolean>(reducedMotion);
 
   // Update refs when props change
   suggestionsRef.current = suggestions;
   previousSuggestionsRef.current = previousSuggestions;
   onSuggestionClickRef.current = onSuggestionClick;
+  reducedMotionRef.current = reducedMotion;
 
   // Create p5 instance only once
   useEffect(() => {
@@ -131,47 +135,50 @@ export default function P5SuggestionBackground({
           let isAnyWordHovered = false;
 
           floatingSuggestions.forEach((suggestion, index) => {
-            // Update position
-            let newX = suggestion.x + suggestion.vx;
-            let newY = suggestion.y + suggestion.vy;
+            // Only update position if motion is not reduced
+            if (!reducedMotionRef.current) {
+              // Update position
+              const newX = suggestion.x + suggestion.vx;
+              const newY = suggestion.y + suggestion.vy;
 
-            // Check for collisions with other suggestions
-            for (let other of floatingSuggestions) {
-              if (other !== suggestion) {
-                const distance = p.dist(newX, newY, other.x, other.y);
-                const minDistance = 70; // Minimum distance during movement
+              // Check for collisions with other suggestions
+              for (const other of floatingSuggestions) {
+                if (other !== suggestion) {
+                  const distance = p.dist(newX, newY, other.x, other.y);
+                  const minDistance = 70; // Minimum distance during movement
 
-                if (distance < minDistance && distance > 0) {
-                  // Calculate repulsion force
-                  const angle = p.atan2(newY - other.y, newX - other.x);
-                  const force = (minDistance - distance) * 0.02;
-                  suggestion.vx += p.cos(angle) * force;
-                  suggestion.vy += p.sin(angle) * force;
+                  if (distance < minDistance && distance > 0) {
+                    // Calculate repulsion force
+                    const angle = p.atan2(newY - other.y, newX - other.x);
+                    const force = (minDistance - distance) * 0.02;
+                    suggestion.vx += p.cos(angle) * force;
+                    suggestion.vy += p.sin(angle) * force;
 
-                  // Limit velocity to prevent wild movements
-                  const maxSpeed = 0.5;
-                  const speed = p.sqrt(suggestion.vx * suggestion.vx + suggestion.vy * suggestion.vy);
-                  if (speed > maxSpeed) {
-                    suggestion.vx = (suggestion.vx / speed) * maxSpeed;
-                    suggestion.vy = (suggestion.vy / speed) * maxSpeed;
+                    // Limit velocity to prevent wild movements
+                    const maxSpeed = 0.5;
+                    const speed = p.sqrt(suggestion.vx * suggestion.vx + suggestion.vy * suggestion.vy);
+                    if (speed > maxSpeed) {
+                      suggestion.vx = (suggestion.vx / speed) * maxSpeed;
+                      suggestion.vy = (suggestion.vy / speed) * maxSpeed;
+                    }
                   }
                 }
               }
-            }
 
-            // Apply the updated velocity
-            suggestion.x += suggestion.vx;
-            suggestion.y += suggestion.vy;
+              // Apply the updated velocity
+              suggestion.x += suggestion.vx;
+              suggestion.y += suggestion.vy;
 
-            // Bounce off edges with some padding - gentler bouncing
-            const padding = 80;
-            if (suggestion.x < padding || suggestion.x > p.width - padding) {
-              suggestion.vx *= -0.6; // More damping for gentler bounce
-              suggestion.x = p.constrain(suggestion.x, padding, p.width - padding);
-            }
-            if (suggestion.y < padding || suggestion.y > p.height - padding) {
-              suggestion.vy *= -0.6; // More damping for gentler bounce
-              suggestion.y = p.constrain(suggestion.y, padding, p.height - padding);
+              // Bounce off edges with some padding - gentler bouncing
+              const padding = 80;
+              if (suggestion.x < padding || suggestion.x > p.width - padding) {
+                suggestion.vx *= -0.6; // More damping for gentler bounce
+                suggestion.x = p.constrain(suggestion.x, padding, p.width - padding);
+              }
+              if (suggestion.y < padding || suggestion.y > p.height - padding) {
+                suggestion.vy *= -0.6; // More damping for gentler bounce
+                suggestion.y = p.constrain(suggestion.y, padding, p.height - padding);
+              }
             }
 
             // Check if mouse is hovering
@@ -185,8 +192,8 @@ export default function P5SuggestionBackground({
               isAnyWordHovered = true;
             }
 
-            // Gentle floating effect - slower
-            const floatOffset = p.sin(p.millis() * 0.001 + index * 0.1) * 2; // Slower and smaller offset
+            // Gentle floating effect - slower (only if motion is not reduced)
+            const floatOffset = !reducedMotionRef.current ? p.sin(p.millis() * 0.001 + index * 0.1) * 2 : 0; // Slower and smaller offset
             const drawY = suggestion.y + floatOffset;
 
             // Set text properties

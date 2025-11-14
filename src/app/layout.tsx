@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Yomogi, Pangolin, Poppins, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import ClientBackground from "@/components/ClientBackground";
+import LayoutClient from "@/components/LayoutClient";
+import { MotionProvider } from "@/components/MotionContext";
 
 const yomogi = Yomogi({
   variable: "--font-yomogi",
@@ -42,8 +43,11 @@ export default function RootLayout({
       <body
         className={`${yomogi.variable} ${pangolin.variable} ${poppins.variable} ${geistMono.variable} antialiased py-5 px-8 flex min-h-screen items-center justify-center`}
       >
-        <ClientBackground />
-        {children}
+        <MotionProvider>
+          <LayoutClient>
+            {children}
+          </LayoutClient>
+        </MotionProvider>
       </body>
     </html>
   );
