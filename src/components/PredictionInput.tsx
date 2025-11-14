@@ -247,7 +247,7 @@ export default function PredictionInput() {
                     <StartOverButton text="Back to Home" />
                 </div>
 
-                <label for="input-text" className="block mb-4 text-xl font-bold mb-4">Start typing or click on the floating words around the screen if you are struggling to come up with what you want to work on.</label>
+                <label htmlFor="input-text" className="block mb-4 text-xl font-bold mb-4">Start typing or click on the floating words around the screen if you are struggling to come up with what you want to work on.</label>
 
                 <div className="relative w-full">
                     <textarea
