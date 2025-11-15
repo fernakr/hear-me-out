@@ -273,8 +273,26 @@ export default function P5SuggestionBackground({
           return true; // Allow default behavior otherwise
         };
 
+        let resizeTimeout: NodeJS.Timeout | null = null;
+        
         p.windowResized = () => {
-          p.resizeCanvas(p.windowWidth, p.windowHeight);
+          // Clear existing timeout to debounce resize events
+          if (resizeTimeout) {
+            clearTimeout(resizeTimeout);
+          }
+          
+          // Debounce resize handling to prevent excessive repositioning
+          resizeTimeout = setTimeout(() => {
+            p.resizeCanvas(p.windowWidth, p.windowHeight);
+            
+            // Reposition suggestions to fit new canvas size
+            floatingSuggestions.forEach(suggestion => {
+              // Keep suggestions within bounds of new canvas size
+              const padding = 80;
+              suggestion.x = p.constrain(suggestion.x, padding, p.width - padding);
+              suggestion.y = p.constrain(suggestion.y, padding, p.height - padding);
+            });
+          }, 100); // 100ms debounce delay
         };
       };
 

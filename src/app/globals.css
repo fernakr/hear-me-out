@@ -117,14 +117,17 @@ h6 {
     opacity: 0;
     transform: translateX(-50%) translateY(10px);
   }
+
   10% {
     opacity: 1;
     transform: translateX(-50%) translateY(0px);
   }
+
   90% {
     opacity: 1;
     transform: translateX(-50%) translateY(0px);
   }
+
   100% {
     opacity: 0;
     transform: translateX(-50%) translateY(-5px);

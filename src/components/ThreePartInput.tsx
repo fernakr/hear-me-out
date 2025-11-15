@@ -254,7 +254,7 @@ export default function ThreePartInput() {
         setCurrentTip(HELPFUL_TIPS[nextIndex]);
         setTipIndex(prevIndex => prevIndex + 1);
         setShowTip(true);
-        
+
         // Auto-hide after 8 seconds to match animation duration
         setTimeout(() => {
             setShowTip(false);
@@ -279,11 +279,11 @@ export default function ThreePartInput() {
     React.useEffect(() => {
         // Use shorter interval in development for testing
         const tipInterval = process.env.NODE_ENV === 'development' ? 10000 : 60000; // 10s in dev, 60s in prod
-        
+
         // Start timer after component is initialized and first tip after interval
         tipTimerRef.current = setTimeout(() => {
             showHelpfulTip();
-            
+
             // Then show tips every interval
             tipTimerRef.current = setInterval(() => {
                 showHelpfulTip();
@@ -336,7 +336,7 @@ export default function ThreePartInput() {
                 previousSuggestions={previousSuggestions}
                 onSuggestionClick={applySuggestion}
             />
-            
+
             {/* Helpful tip cloud - non-blocking */}
             {showTip && (
                 <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 px-4">
@@ -344,7 +344,7 @@ export default function ThreePartInput() {
                     <div className="relative bg-purple-50 rounded-2xl shadow-lg border border-purple-200 p-4 animate-fade-in-out max-w-lg">
                         {/* Cloud tail */}
                         <div className="absolute -bottom-2 left-6 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-purple-50"></div>
-                        
+
                         {/* Close button */}
                         <button
                             onClick={dismissTip}
@@ -355,7 +355,7 @@ export default function ThreePartInput() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
-                        
+
                         {/* Tip content */}
                         <div className="pr-6">
                             <div className="flex items-start">
@@ -368,7 +368,7 @@ export default function ThreePartInput() {
                     </div>
                 </div>
             )}
-            
+
             <div className="p-8 w-full max-w-3xl mx-auto content-container flex flex-col items-center text-center">
                 {/* Back button */}
                 <div className="w-full flex justify-end mb-8">
@@ -389,7 +389,7 @@ export default function ThreePartInput() {
                         <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                             I
                         </div>
-                        
+
                         <select
                             value={selectedConnector}
                             onChange={handleConnectorChange}
