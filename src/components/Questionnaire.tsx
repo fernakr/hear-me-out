@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import AutoResizeTextarea from './AutoResizeTextarea';
 import StartOverButton from './StartOverButton';
 
@@ -147,7 +148,7 @@ export default function Questionnaire() {
             <div className="flex justify-between mb-8 gap-3 text-gray-400 text-sm font-bold">
 
                 <span><span className="hidden lg:inline ">Question </span>{questionIndex + 1} of {questions.length}</span>
-                {questionIndex > 0 ? <StartOverButton /> : <a href="/help" className="nav-link">Need help figuring out what this is?</a>}
+                {questionIndex > 0 ? <StartOverButton /> : <Link href="/help" className="nav-link">Need help figuring out what this is?</Link>}
             </div>
 
 

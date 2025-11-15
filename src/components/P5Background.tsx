@@ -23,6 +23,15 @@ export default function P5Background() {
   const audioStartedRef = useRef<boolean>(false);
   const startAudioHandlerRef = useRef<(() => void) | null>(null);
 
+  // Add a global flag to persist audio state across HMR refreshes during development
+  useEffect(() => {
+    // Check if audio system was already started in a previous component instance
+    if (typeof window !== 'undefined' && (window as any).__audioSystemStarted) {
+      audioStartedRef.current = true;
+      console.log('🔄 Audio system already started - persisting across HMR');
+    }
+  }, []);
+
   // Update refs when values change
   reducedMotionRef.current = reducedMotion;
   isMutedRef.current = isMuted;
@@ -166,6 +175,11 @@ export default function P5Background() {
 
           audioStartedRef.current = true;
           console.log('🎵 Audio system initialized');
+          
+          // Set global flag for HMR persistence
+          if (typeof window !== 'undefined') {
+            (window as any).__audioSystemStarted = true;
+          }
 
           // Set up a periodic check to ensure calm audio keeps playing
           calmWatchdogRef.current = setInterval(() => {
