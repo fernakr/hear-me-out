@@ -51,6 +51,45 @@ export default function P5SuggestionBackground({
       const sketch = (p: any) => {
         let floatingSuggestions: FloatingSuggestion[] = [];
 
+        // Function to draw text with strand warping effects
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const drawWarpedText = (p: any, text: string, centerX: number, centerY: number, textSize: number, index: number) => {
+          p.textAlign(p.LEFT, p.CENTER);
+          p.textSize(textSize);
+
+          const time = p.millis() * 0.001; // Medium speed warping animation
+          const charSpacing = textSize * 0.7; // Character spacing based on text size
+          const totalWidth = text.length * charSpacing;
+          const startX = centerX - totalWidth / 2;
+
+          // Draw each character with individual warping
+          for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const charX = startX + i * charSpacing;
+
+            // Create layered wave effects for strand-like distortion - medium subtlety
+            const wave1 = p.sin(time + i * 0.4 + index * 0.25) * 4; // Primary wave - medium amplitude
+            const wave2 = p.sin(time * 1.2 + i * 0.6 + index * 0.18) * 2; // Secondary wave - medium amplitude
+            const wave3 = p.cos(time * 0.5 + i * 0.25 + index * 0.35) * 1; // Tertiary wave - medium amplitude
+
+            const charY = centerY + wave1 + wave2 + wave3;
+
+            // Add moderate rotation for each character
+            const rotation = p.sin(time + i * 0.3) * 0.06; // Medium rotation
+
+            p.push();
+            p.translate(charX, charY);
+            p.rotate(rotation);
+
+            // Add moderate scaling variation
+            const scale = 1 + p.sin(time * 1.8 + i * 0.5) * 0.05; // Medium scale variation
+            p.scale(scale);
+
+            p.text(char, 0, 0);
+            p.pop();
+          }
+        };
+
         p.setup = () => {
           // Create canvas that fills the viewport
           p.createCanvas(p.windowWidth, p.windowHeight);
@@ -96,7 +135,7 @@ export default function P5SuggestionBackground({
 
                 // Check for collisions with existing suggestions
                 validPosition = true;
-                for (let existing of floatingSuggestions) {
+                for (const existing of floatingSuggestions) {
                   const distance = p.dist(x, y, existing.x, existing.y);
                   const minDistance = 80; // Minimum distance between words
                   if (distance < minDistance) {
@@ -222,8 +261,13 @@ export default function P5SuggestionBackground({
               p.drawingContext.shadowBlur = 0;
             }
 
-            // Draw the text
-            p.text(suggestion.word, suggestion.x, drawY);
+            // Draw warped text with strand effects
+            if (!reducedMotionRef.current) {
+              drawWarpedText(p, suggestion.word, suggestion.x, drawY, suggestion.size + (suggestion.hovered ? 4 : 0), index);
+            } else {
+              // Fallback to normal text for reduced motion
+              p.text(suggestion.word, suggestion.x, drawY);
+            }
           });
 
           // Change cursor based on hover state
@@ -274,17 +318,17 @@ export default function P5SuggestionBackground({
         };
 
         let resizeTimeout: NodeJS.Timeout | null = null;
-        
+
         p.windowResized = () => {
           // Clear existing timeout to debounce resize events
           if (resizeTimeout) {
             clearTimeout(resizeTimeout);
           }
-          
+
           // Debounce resize handling to prevent excessive repositioning
           resizeTimeout = setTimeout(() => {
             p.resizeCanvas(p.windowWidth, p.windowHeight);
-            
+
             // Reposition suggestions to fit new canvas size
             floatingSuggestions.forEach(suggestion => {
               // Keep suggestions within bounds of new canvas size
