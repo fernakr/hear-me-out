@@ -2,15 +2,29 @@
 
 import { useEffect, useRef } from 'react';
 import { useMotion } from './MotionContext';
+import { useAudio } from './AudioContext';
 
 export default function P5Background() {
   const containerRef = useRef<HTMLDivElement>(null);
   const p5InstanceRef = useRef<any>(null);
+  const calmAudioRef = useRef<HTMLAudioElement | null>(null); // For continuous calm.mp3
+  const whatAudioRef = useRef<HTMLAudioElement | null>(null); // For timed what.mp3
+  const whooshAudioRef = useRef<HTMLAudioElement | null>(null); // For alternating whoosh.mp3
+  const intervalTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initialTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentIntervalSoundRef = useRef<'what' | 'whoosh'>('what'); // Track which sound to play next
   const { reducedMotion } = useMotion();
+  const { isMuted, volume } = useAudio();
   const reducedMotionRef = useRef<boolean>(reducedMotion);
+  const isMutedRef = useRef<boolean>(isMuted);
+  const volumeRef = useRef<number>(volume);
+  const audioStartedRef = useRef<boolean>(false);
+  const startAudioHandlerRef = useRef<(() => void) | null>(null);
 
-  // Update ref when reducedMotion changes
+  // Update refs when values change
   reducedMotionRef.current = reducedMotion;
+  isMutedRef.current = isMuted;
+  volumeRef.current = volume;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -18,6 +32,73 @@ export default function P5Background() {
     // Dynamically import p5 to avoid SSR issues
     const loadP5 = async () => {
       const p5 = (await import('p5')).default;
+
+      // DRY helper function for creating audio elements
+      const createAudioElement = (src: string, loop: boolean = false, volumeMultiplier: number = 1): HTMLAudioElement => {
+        const audio = new Audio(src);
+        audio.loop = loop;
+        audio.volume = volumeRef.current * volumeMultiplier;
+        return audio;
+      };
+
+      // Helper function to play interval sounds with error handling
+      const playIntervalSound = (audio: HTMLAudioElement | null, soundName: string) => {
+        if (audio && !isMutedRef.current) {
+          audio.currentTime = 0; // Reset to start
+          audio.play().catch((error: unknown) => {
+            console.log(`${soundName} interval play failed:`, error);
+          });
+        }
+      };
+
+      // Initialize dual audio system with DRY approach
+      calmAudioRef.current = createAudioElement('/calm.mp3', true, 0.7); // Continuous, quieter
+      whatAudioRef.current = createAudioElement('/what.mp3', false, 1.0); // Interval sound
+      whooshAudioRef.current = createAudioElement('/whoosh.mp3', false, 1.0); // Alternating interval sound
+
+      // Add user interaction handler to start audio
+      const startAudioOnInteraction = () => {
+        if (!audioStartedRef.current && !isMutedRef.current) {
+          // Start calm audio immediately
+          if (calmAudioRef.current) {
+            calmAudioRef.current.play().catch((error: unknown) => {
+              console.log('Calm audio play failed:', error);
+            });
+          }
+
+          // Schedule first interval sound (what.mp3) 10 seconds after start
+          initialTimerRef.current = setTimeout(() => {
+            playIntervalSound(whatAudioRef.current, 'What audio');
+            
+            // Then alternate between what.mp3 and whoosh.mp3 every 2 minutes
+            intervalTimerRef.current = setInterval(() => {
+              const currentSound = currentIntervalSoundRef.current;
+              
+              if (currentSound === 'what') {
+                playIntervalSound(whatAudioRef.current, 'What audio');
+                currentIntervalSoundRef.current = 'whoosh'; // Next time play whoosh
+              } else {
+                playIntervalSound(whooshAudioRef.current, 'Whoosh audio'); 
+                currentIntervalSoundRef.current = 'what'; // Next time play what
+              }
+            }, 120000); // 2 minutes = 120000ms
+          }, 10000); // 10 seconds initial delay
+
+          audioStartedRef.current = true;
+          // Remove listeners after first successful play
+          document.removeEventListener('click', startAudioOnInteraction);
+          document.removeEventListener('keydown', startAudioOnInteraction);
+          document.removeEventListener('touchstart', startAudioOnInteraction);
+        }
+      };
+
+      // Store handler reference for cleanup
+      startAudioHandlerRef.current = startAudioOnInteraction;
+
+      // Add event listeners for user interactions
+      document.addEventListener('click', startAudioOnInteraction);
+      document.addEventListener('keydown', startAudioOnInteraction);
+      document.addEventListener('touchstart', startAudioOnInteraction);
 
       const sketch = (p: any) => {
         let time = 0;
@@ -140,12 +221,14 @@ export default function P5Background() {
 
         p.setup = () => {
           canvas = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
-
+          
           // Create shader
           waveShader = p.createShader(vertSource, fragSource);
         };
 
         p.draw = () => {
+          if (!waveShader) return; // Safety check
+          
           // Use the shader
           p.shader(waveShader);
 
@@ -178,12 +261,82 @@ export default function P5Background() {
 
     // Cleanup function
     return () => {
+      // Clean up calm audio
+      if (calmAudioRef.current) {
+        calmAudioRef.current.pause();
+        calmAudioRef.current = null;
+      }
+      // Clean up what audio
+      if (whatAudioRef.current) {
+        whatAudioRef.current.pause();
+        whatAudioRef.current = null;
+      }
+      // Clean up whoosh audio
+      if (whooshAudioRef.current) {
+        whooshAudioRef.current.pause();
+        whooshAudioRef.current = null;
+      }
+      // Clear timers/intervals
+      if (initialTimerRef.current) {
+        clearTimeout(initialTimerRef.current);
+        initialTimerRef.current = null;
+      }
+      if (intervalTimerRef.current) {
+        clearInterval(intervalTimerRef.current);
+        intervalTimerRef.current = null;
+      }
       if (p5InstanceRef.current) {
         p5InstanceRef.current.remove();
         p5InstanceRef.current = null;
       }
+      // Clean up event listeners
+      if (startAudioHandlerRef.current) {
+        document.removeEventListener('click', startAudioHandlerRef.current);
+        document.removeEventListener('keydown', startAudioHandlerRef.current);
+        document.removeEventListener('touchstart', startAudioHandlerRef.current);
+      }
     };
   }, []);
+
+  // Handle mute/unmute changes
+  useEffect(() => {
+    // DRY helper for audio control
+    const controlAudio = (audioRef: React.MutableRefObject<HTMLAudioElement | null>, shouldPlay: boolean = false) => {
+      if (audioRef.current) {
+        if (isMuted) {
+          audioRef.current.pause();
+        } else if (shouldPlay && audioStartedRef.current) {
+          audioRef.current.play().catch((error: unknown) => {
+            console.log('Audio resume failed:', error);
+          });
+        }
+      }
+    };
+
+    // Control all audio tracks
+    controlAudio(calmAudioRef, true); // Resume calm audio when unmuted
+    controlAudio(whatAudioRef, false); // Interval sounds resume on their schedule
+    controlAudio(whooshAudioRef, false); // Interval sounds resume on their schedule
+
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  // Handle volume changes
+  useEffect(() => {
+    // DRY helper for volume control
+    const setAudioVolume = (audioRef: React.MutableRefObject<HTMLAudioElement | null>, volumeMultiplier: number = 1) => {
+      if (audioRef.current) {
+        audioRef.current.volume = volume * volumeMultiplier;
+      }
+    };
+
+    // Apply volume to all audio tracks
+    setAudioVolume(calmAudioRef, 0.7); // Maintain background layer quietness
+    setAudioVolume(whatAudioRef, 1.0); // Full volume for interval sounds
+    setAudioVolume(whooshAudioRef, 1.0); // Full volume for interval sounds
+    
+    volumeRef.current = volume;
+  }, [volume]);
 
   return (
     <div

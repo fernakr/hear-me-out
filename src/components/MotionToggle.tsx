@@ -1,39 +1,39 @@
 'use client';
 
 import { useMotion } from './MotionContext';
+import { useAudio } from './AudioContext';
+import ToggleSwitch from './ToggleSwitch';
 
 interface MotionToggleProps {
     onToggle?: (reducedMotion: boolean) => void;
 }
 
-export default function MotionToggle({ onToggle }: MotionToggleProps) {
+export default function ControlToggles({ onToggle }: MotionToggleProps) {
     const { reducedMotion, setReducedMotion } = useMotion();
+    const { isMuted, toggleMute } = useAudio();
 
-    const handleToggle = () => {
+    const handleMotionToggle = () => {
         const newValue = !reducedMotion;
         setReducedMotion(newValue);
         onToggle?.(newValue);
     };
 
     return (
-        <div className="fixed top-4 right-4 z-50">
-            <label className="mb-0 flex items-center gap-3 cursor-pointer">
-                <span className="text-sm font-bold text-purple-600">Reduce Motion</span>
-                <div className="relative">
-                    <input
-                        type="checkbox"
-                        checked={reducedMotion}
-                        onChange={handleToggle}
-                        className="sr-only"
-                        aria-label="Toggle reduced motion"
-                    />
-                    <div className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out flex items-center ${reducedMotion ? 'bg-purple-600' : 'bg-gray-300'
-                        }`}>
-                        <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ml-0.5 ${reducedMotion ? 'translate-x-5' : 'translate-x-0'
-                            }`} />
-                    </div>
-                </div>
-            </label>
+        <div className="fixed top-4 right-4 z-50 flex flex-col items-end">
+            <ToggleSwitch
+                label="Reduce Motion"
+                checked={reducedMotion}
+                onChange={handleMotionToggle}
+                ariaLabel="Toggle reduced motion"
+            />
+            <div className="mt-2">
+                <ToggleSwitch
+                    label="Mute Audio"
+                    checked={isMuted}
+                    onChange={toggleMute}
+                    ariaLabel="Toggle background audio mute"
+                />
+            </div>
         </div>
     );
 }
