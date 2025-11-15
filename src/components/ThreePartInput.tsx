@@ -328,6 +328,20 @@ export default function ThreePartInput() {
         }
     }, [getFullText, getWordCount, router]);
 
+    // Handle Enter key press for questionnaire navigation
+    const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            const wordCount = getWordCount();
+            const isValidWordCount = wordCount >= SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE &&
+                wordCount <= SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE;
+
+            if (isValidWordCount) {
+                event.preventDefault();
+                handleSendToQuestionnaire();
+            }
+        }
+    }, [getWordCount, handleSendToQuestionnaire]);
+
     return (
         <>
             {/* Floating text suggestions layer on top */}
@@ -409,6 +423,7 @@ export default function ThreePartInput() {
                         <AutoResizeTextarea
                             value={textareaContent}
                             onChange={handleTextareaChange}
+                            onKeyDown={handleKeyDown}
                             placeholder="the rest of your thought..."
                             className={`w-full text-lg p-2 border-none resize-none outline-none bg-transparent transition-all duration-200 ${isGenerating
                                 ? 'text-blue-600 dark:text-blue-400'
@@ -444,19 +459,28 @@ export default function ThreePartInput() {
                 {/* Send to Questionnaire Button */}
                 {(() => {
                     const wordCount = getWordCount();
-                    return wordCount >= SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE &&
+                    const isValidWordCount = wordCount >= SUGGESTION_CONFIG.MIN_WORD_COUNT_FOR_QUESTIONNAIRE &&
                         wordCount <= SUGGESTION_CONFIG.MAX_WORD_COUNT_FOR_QUESTIONNAIRE;
-                })() && (
+
+                    return (
                         <div className="flex justify-center">
                             <button
                                 onClick={handleSendToQuestionnaire}
-                                className="mt-5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
-                                aria-label="Use this text to start the questionnaire"
+                                disabled={!isValidWordCount}
+                                className={`mt-5 px-4 py-2 rounded-lg font-medium transition-colors ${isValidWordCount
+                                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    }`}
+                                aria-label={isValidWordCount ? "Use this text to start the questionnaire" : "More words needed to continue"}
                             >
-                                Use this text to start questionnaire →
+                                {isValidWordCount
+                                    ? 'Click (or hit enter) to use this text to start questionnaire →'
+                                    : 'More Words Needed'
+                                }
                             </button>
                         </div>
-                    )}
+                    );
+                })()}
 
                 {/* Instructions for the floating suggestions */}
                 {/* <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">

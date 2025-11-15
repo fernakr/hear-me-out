@@ -54,6 +54,18 @@ export default function Questionnaire() {
 
     const currentQuestion = questions[questionIndex];
 
+    // Handle Enter key press for next question
+    const handleKeyDown = (event: React.KeyboardEvent) => {
+        if (event.key === 'Enter' && !event.shiftKey && isCurrentQuestionAnswered()) {
+            event.preventDefault();
+            if (questionIndex < questions.length - 1) {
+                handleNext();
+            } else {
+                handleSubmit();
+            }
+        }
+    };
+
     const isCurrentQuestionAnswered = () => {
         const currentResponse = responses[questionIndex];
         if (!currentResponse || currentResponse.trim().length === 0) {
@@ -150,6 +162,7 @@ export default function Questionnaire() {
                     className="w-full border p-2"
                     value={responses[questionIndex] || ''}
                     onChange={updateResponse}
+                    onKeyDown={handleKeyDown}
                     minWords={minWords}
                     maxWords={maxWords}
                     placeholder="Type your response here..."
@@ -194,7 +207,7 @@ export default function Questionnaire() {
                         onClick={handleNext}
                         disabled={!isCurrentQuestionAnswered()}
                     >
-                        Next Question
+                        {isCurrentQuestionAnswered() ? 'Next Question (or hit Enter)' : 'More Words Needed'}
                     </button>
                 ) : (
                     <button

@@ -13,6 +13,7 @@ interface AutoResizeTextareaProps {
   required?: boolean;
   id?: string;
   minHeight?: string;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 }
 
 export default function AutoResizeTextarea({
@@ -25,7 +26,8 @@ export default function AutoResizeTextarea({
   className = '',
   required = false,
   id,
-  minHeight = '40px'
+  minHeight = '40px',
+  onKeyDown
 }: AutoResizeTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -79,6 +81,7 @@ export default function AutoResizeTextarea({
       className={textareaClass}
       value={value}
       onChange={handleChange}
+      onKeyDown={onKeyDown}
       rows={1}
       maxLength={maxLength}
       placeholder={placeholder}
