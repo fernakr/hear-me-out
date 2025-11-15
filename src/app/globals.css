@@ -111,6 +111,30 @@ h6 {
   transition: color 0.2s ease-in-out;
 }
 
+/* Slow fade in/out animation for tip clouds */
+@keyframes fade-in-out {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0px);
+  }
+  90% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+.animate-fade-in-out {
+  animation: fade-in-out 8s ease-in-out forwards;
+}
+
 @import "tailwindcss";
 /* 
 canvas {

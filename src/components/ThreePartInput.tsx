@@ -50,6 +50,25 @@ const CONNECTOR_WORDS = [
     'love'
 ] as const;
 
+// Helpful tip prompts to inspire users
+const HELPFUL_TIPS = [
+    "Think about a recent emotion you experienced. What was it like?",
+    "Consider a challenge you're facing right now. How does it make you feel?",
+    "Reflect on something you're grateful for today.",
+    "What's one thing you wish others understood about you?",
+    "Think about a moment when you felt truly heard or seen.",
+    "Consider a goal or dream that's important to you.",
+    "Reflect on a relationship that brings you joy or concern.",
+    "What's something you've learned about yourself recently?",
+    "Think about a fear or worry that's been on your mind.",
+    "Consider a strength or quality you appreciate about yourself.",
+    "Reflect on a time when you overcame something difficult.",
+    "What's one thing you need more of in your life right now?",
+    "Think about a memory that still brings you comfort.",
+    "Consider something you're curious or excited about.",
+    "Reflect on a value or belief that guides your decisions."
+] as const;
+
 export default function ThreePartInput() {
     const router = useRouter();
 
@@ -60,9 +79,13 @@ export default function ThreePartInput() {
     const [previousSuggestions, setPreviousSuggestions] = useState<string[]>([]);
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [hasInitialized, setHasInitialized] = useState<boolean>(false);
+    const [showTip, setShowTip] = useState<boolean>(false);
+    const [currentTip, setCurrentTip] = useState<string>('');
+    const [tipIndex, setTipIndex] = useState<number>(0);
 
     // Refs
     const suggestionTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const tipTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Get the full combined text
     const getFullText = useCallback((): string => {
@@ -225,6 +248,24 @@ export default function ThreePartInput() {
         }
     }, [textareaContent, selectedConnector, generateSuggestions, previousSuggestions]);
 
+    // Show a helpful tip
+    const showHelpfulTip = useCallback(() => {
+        const nextIndex = tipIndex % HELPFUL_TIPS.length;
+        setCurrentTip(HELPFUL_TIPS[nextIndex]);
+        setTipIndex(prevIndex => prevIndex + 1);
+        setShowTip(true);
+        
+        // Auto-hide after 8 seconds to match animation duration
+        setTimeout(() => {
+            setShowTip(false);
+        }, 8000);
+    }, [tipIndex]);
+
+    // Dismiss tip manually
+    const dismissTip = useCallback(() => {
+        setShowTip(false);
+    }, []);
+
     // Initialize with suggestions for the default text
     React.useEffect(() => {
         if (!hasInitialized) {
@@ -234,11 +275,38 @@ export default function ThreePartInput() {
         }
     }, [hasInitialized, selectedConnector, generateSuggestions]);
 
+    // Setup tip timer - show tips every minute
+    React.useEffect(() => {
+        // Use shorter interval in development for testing
+        const tipInterval = process.env.NODE_ENV === 'development' ? 10000 : 60000; // 10s in dev, 60s in prod
+        
+        // Start timer after component is initialized and first tip after interval
+        tipTimerRef.current = setTimeout(() => {
+            showHelpfulTip();
+            
+            // Then show tips every interval
+            tipTimerRef.current = setInterval(() => {
+                showHelpfulTip();
+            }, tipInterval);
+        }, tipInterval);
+
+        return () => {
+            if (tipTimerRef.current) {
+                clearTimeout(tipTimerRef.current);
+                clearInterval(tipTimerRef.current);
+            }
+        };
+    }, [showHelpfulTip]);
+
     // Cleanup suggestion timer on unmount
     React.useEffect(() => {
         return () => {
             if (suggestionTimerRef.current) {
                 clearTimeout(suggestionTimerRef.current);
+            }
+            if (tipTimerRef.current) {
+                clearTimeout(tipTimerRef.current);
+                clearInterval(tipTimerRef.current);
             }
         };
     }, []);
@@ -268,6 +336,39 @@ export default function ThreePartInput() {
                 previousSuggestions={previousSuggestions}
                 onSuggestionClick={applySuggestion}
             />
+            
+            {/* Helpful tip cloud - non-blocking */}
+            {showTip && (
+                <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-40 px-4">
+                    {/* Cloud-like tip bubble */}
+                    <div className="relative bg-purple-50 rounded-2xl shadow-lg border border-purple-200 p-4 animate-fade-in-out max-w-lg">
+                        {/* Cloud tail */}
+                        <div className="absolute -bottom-2 left-6 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-purple-50"></div>
+                        
+                        {/* Close button */}
+                        <button
+                            onClick={dismissTip}
+                            className="absolute top-2 right-2 text-gray-600 hover:text-gray-800 transition-colors p-1 rounded-full hover:bg-purple-100"
+                            aria-label="Close tip"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        
+                        {/* Tip content */}
+                        <div className="pr-6">
+                            <div className="flex items-start">
+                                <span className="text-base mr-2 mt-0.5">💡</span>
+                                <p className="text-gray-800 text-sm leading-relaxed font-medium">
+                                    {currentTip}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             <div className="p-8 w-full max-w-3xl mx-auto content-container flex flex-col items-center text-center">
                 {/* Back button */}
                 <div className="w-full flex justify-end mb-8">
@@ -281,29 +382,30 @@ export default function ThreePartInput() {
                 {/* Three-part flex container */}
                 <div
                     id="three-part-input"
-                    className="flex items-start gap-3 w-full mb-4 p-4 border rounded-lg bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 input-interaction-zone"
+                    className="flex flex-col md:flex-row md:items-start gap-3 w-full mb-4 p-4 border rounded-lg bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 input-interaction-zone"
                 >
-                    {/* Part 1: Hardcoded "I" */}
-                    <div className="flex-shrink-0 text-lg font-semibold text-gray-900 dark:text-gray-100 pt-2">
-                        I
+                    {/* Part 1 & 2: "I" + Connector dropdown (always together) */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                            I
+                        </div>
+                        
+                        <select
+                            value={selectedConnector}
+                            onChange={handleConnectorChange}
+                            className="text-lg p-2 border rounded bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                            aria-label="Select connector word"
+                        >
+                            {CONNECTOR_WORDS.map((word) => (
+                                <option key={word} value={word}>
+                                    {word}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
-                    {/* Part 2: Connector dropdown */}
-                    <select
-                        value={selectedConnector}
-                        onChange={handleConnectorChange}
-                        className="flex-shrink-0 text-lg p-2 border rounded bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
-                        aria-label="Select connector word"
-                    >
-                        {CONNECTOR_WORDS.map((word) => (
-                            <option key={word} value={word}>
-                                {word}
-                            </option>
-                        ))}
-                    </select>
-
                     {/* Part 3: Auto-resize textarea */}
-                    <div className="flex-1 relative">
+                    <div className="flex-1 relative w-full md:w-auto">
                         <AutoResizeTextarea
                             value={textareaContent}
                             onChange={handleTextareaChange}
