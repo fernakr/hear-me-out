@@ -103,26 +103,65 @@ export default function P5Background() {
             
             console.log(`🎵 Playing first interval sound... (on final page: ${isOnFinalPage})`);
             
+            // Function to schedule next interval sound after current one ends + 30 seconds
+            const scheduleNextIntervalSound = () => {
+              const currentIsOnFinalPage = window.location.pathname === '/final';
+              const audioToPlay = currentIsOnFinalPage ? whatAudioRef.current : whooshAudioRef.current;
+              const soundName = currentIsOnFinalPage ? 'What audio (final page)' : 'Whoosh audio';
+              
+              if (audioToPlay && !isMutedRef.current) {
+                console.log(`🎵 Playing ${soundName}...`);
+                audioToPlay.currentTime = 0;
+                
+                // Set up event listener for when this sound ends
+                const handleSoundEnd = () => {
+                  console.log(`🎵 ${soundName} ended, scheduling next in 30 seconds...`);
+                  audioToPlay.removeEventListener('ended', handleSoundEnd);
+                  
+                  // Schedule next sound 30 seconds after this one ends
+                  intervalTimerRef.current = setTimeout(() => {
+                    scheduleNextIntervalSound();
+                  }, 30000);
+                };
+                
+                audioToPlay.addEventListener('ended', handleSoundEnd);
+                
+                audioToPlay.play().catch((error: unknown) => {
+                  console.log(`❌ ${soundName} play failed:`, error);
+                  audioToPlay.removeEventListener('ended', handleSoundEnd);
+                  // If play fails, try again in 30 seconds
+                  intervalTimerRef.current = setTimeout(() => {
+                    scheduleNextIntervalSound();
+                  }, 30000);
+                });
+              }
+            };
+            
             if (isOnFinalPage) {
               playIntervalSound(whatAudioRef.current, 'What audio (final page - initial)');
+              // Set up the duration-based scheduling after initial sound
+              if (whatAudioRef.current) {
+                const handleInitialEnd = () => {
+                  whatAudioRef.current?.removeEventListener('ended', handleInitialEnd);
+                  intervalTimerRef.current = setTimeout(() => {
+                    scheduleNextIntervalSound();
+                  }, 30000);
+                };
+                whatAudioRef.current.addEventListener('ended', handleInitialEnd);
+              }
             } else {
               playIntervalSound(whooshAudioRef.current, 'Whoosh audio (initial)');
-            }
-
-            // Then play interval sounds every 1 minute 15 seconds
-            intervalTimerRef.current = setInterval(() => {
-              // Check if we're on the final page - if so, always play what.mp3
-              // Otherwise, always play whoosh.mp3 for the alternating intervals
-              const isOnFinalPage = window.location.pathname === '/final';
-
-              console.log(`🎵 Playing interval sound... (on final page: ${isOnFinalPage})`);
-
-              if (isOnFinalPage) {
-                playIntervalSound(whatAudioRef.current, 'What audio (final page)');
-              } else {
-                playIntervalSound(whooshAudioRef.current, 'Whoosh audio');
+              // Set up the duration-based scheduling after initial sound
+              if (whooshAudioRef.current) {
+                const handleInitialEnd = () => {
+                  whooshAudioRef.current?.removeEventListener('ended', handleInitialEnd);
+                  intervalTimerRef.current = setTimeout(() => {
+                    scheduleNextIntervalSound();
+                  }, 30000);
+                };
+                whooshAudioRef.current.addEventListener('ended', handleInitialEnd);
               }
-            }, 75000); // 1 minute 15 seconds = 75000ms
+            }
           }, 1000); // 1 second initial delay
 
           audioStartedRef.current = true;
@@ -337,7 +376,7 @@ export default function P5Background() {
         initialTimerRef.current = null;
       }
       if (intervalTimerRef.current) {
-        clearInterval(intervalTimerRef.current);
+        clearTimeout(intervalTimerRef.current);
         intervalTimerRef.current = null;
       }
       if (calmWatchdogRef.current) {
