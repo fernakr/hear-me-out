@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useMotion } from './MotionContext';
 import { useAudio } from './AudioContext';
 
@@ -15,6 +16,7 @@ export default function P5Background() {
   const calmWatchdogRef = useRef<NodeJS.Timeout | null>(null);
   const { reducedMotion } = useMotion();
   const { isMuted, volume } = useAudio();
+  const pathname = usePathname();
   const reducedMotionRef = useRef<boolean>(reducedMotion);
   const isMutedRef = useRef<boolean>(isMuted);
   const volumeRef = useRef<number>(volume);
@@ -94,10 +96,18 @@ export default function P5Background() {
             });
           }
 
-          // Schedule first interval sound (what.mp3) 10 seconds after start
+          // Schedule first interval sound 1 second after start
           initialTimerRef.current = setTimeout(() => {
-            console.log('🎵 Playing first interval sound (what.mp3)...');
-            playIntervalSound(whatAudioRef.current, 'What audio');
+            // Check if we're on the final page for the initial sound too
+            const isOnFinalPage = window.location.pathname === '/final';
+            
+            console.log(`🎵 Playing first interval sound... (on final page: ${isOnFinalPage})`);
+            
+            if (isOnFinalPage) {
+              playIntervalSound(whatAudioRef.current, 'What audio (final page - initial)');
+            } else {
+              playIntervalSound(whooshAudioRef.current, 'Whoosh audio (initial)');
+            }
 
             // Then play interval sounds every 45 seconds
             intervalTimerRef.current = setInterval(() => {
@@ -113,7 +123,7 @@ export default function P5Background() {
                 playIntervalSound(whooshAudioRef.current, 'Whoosh audio');
               }
             }, 45000); // 45 seconds = 45000ms
-          }, 10000); // 10 seconds initial delay
+          }, 1000); // 1 second initial delay
 
           audioStartedRef.current = true;
           console.log('🎵 Audio system initialized');
@@ -388,6 +398,55 @@ export default function P5Background() {
 
     volumeRef.current = volume;
   }, [volume]);
+
+  // Handle page transitions for audio changes
+  useEffect(() => {
+    if (audioStartedRef.current) {
+      const isOnFinalPage = pathname === '/final';
+      
+      // If we just moved to the final page, fade out any playing interval sounds
+      if (isOnFinalPage) {
+        console.log('🎵 Transitioning to final page - fading out interval sounds...');
+        
+        // Fade out whoosh if it's currently playing
+        if (whooshAudioRef.current && !whooshAudioRef.current.paused) {
+          // Inline fade function since we can't reference the inner function
+          const fadeOutAudio = (audio: HTMLAudioElement, duration: number = 1000): Promise<void> => {
+            return new Promise((resolve) => {
+              const startVolume = audio.volume;
+              const fadeStep = startVolume / (duration / 50); // 50ms intervals
+              
+              const fadeInterval = setInterval(() => {
+                if (audio.volume > 0) {
+                  audio.volume = Math.max(0, audio.volume - fadeStep);
+                } else {
+                  clearInterval(fadeInterval);
+                  audio.pause();
+                  audio.volume = startVolume; // Reset volume for next play
+                  resolve();
+                }
+              }, 50);
+            });
+          };
+
+          fadeOutAudio(whooshAudioRef.current, 500).then(() => {
+            console.log('🔇 Whoosh audio faded out');
+          });
+        }
+        
+        // Immediately play what.mp3 after a brief delay
+        setTimeout(() => {
+          if (!isMutedRef.current && whatAudioRef.current) {
+            console.log('🎵 Playing what.mp3 for final page transition');
+            whatAudioRef.current.currentTime = 0;
+            whatAudioRef.current.play().catch((error: unknown) => {
+              console.log('❌ What audio transition play failed:', error);
+            });
+          }
+        }, 600); // Small delay to let fade finish
+      }
+    }
+  }, [pathname]);
 
   return (
     <div
