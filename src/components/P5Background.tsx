@@ -109,7 +109,7 @@ export default function P5Background() {
               playIntervalSound(whooshAudioRef.current, 'Whoosh audio (initial)');
             }
 
-            // Then play interval sounds every 45 seconds
+            // Then play interval sounds every 1 minute 15 seconds
             intervalTimerRef.current = setInterval(() => {
               // Check if we're on the final page - if so, always play what.mp3
               // Otherwise, always play whoosh.mp3 for the alternating intervals
@@ -122,7 +122,7 @@ export default function P5Background() {
               } else {
                 playIntervalSound(whooshAudioRef.current, 'Whoosh audio');
               }
-            }, 45000); // 45 seconds = 45000ms
+            }, 75000); // 1 minute 15 seconds = 75000ms
           }, 1000); // 1 second initial delay
 
           audioStartedRef.current = true;
