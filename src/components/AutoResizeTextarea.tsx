@@ -48,7 +48,7 @@ export default function AutoResizeTextarea({
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
-    
+
     // Check word limits if specified
     if (maxWords !== undefined) {
       const wordCount = getWordCount(newValue);
@@ -57,7 +57,7 @@ export default function AutoResizeTextarea({
         return;
       }
     }
-    
+
     onChange(newValue);
     setTimeout(autoResize, 0);
   };

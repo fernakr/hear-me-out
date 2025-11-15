@@ -21,12 +21,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AudioContext.Provider value={{ 
-            isMuted, 
-            setMuted, 
-            toggleMute, 
-            volume, 
-            setVolume 
+        <AudioContext.Provider value={{
+            isMuted,
+            setMuted,
+            toggleMute,
+            volume,
+            setVolume
         }}>
             {children}
         </AudioContext.Provider>

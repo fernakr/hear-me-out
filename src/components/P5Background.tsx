@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useMotion } from './MotionContext';
 import { useAudio } from './AudioContext';
 
@@ -12,7 +12,7 @@ export default function P5Background() {
   const whooshAudioRef = useRef<HTMLAudioElement | null>(null); // For alternating whoosh.mp3
   const intervalTimerRef = useRef<NodeJS.Timeout | null>(null);
   const initialTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const currentIntervalSoundRef = useRef<'what' | 'whoosh'>('what'); // Track which sound to play next
+  const calmWatchdogRef = useRef<NodeJS.Timeout | null>(null);
   const { reducedMotion } = useMotion();
   const { isMuted, volume } = useAudio();
   const reducedMotionRef = useRef<boolean>(reducedMotion);
@@ -44,10 +44,17 @@ export default function P5Background() {
       // Helper function to play interval sounds with error handling
       const playIntervalSound = (audio: HTMLAudioElement | null, soundName: string) => {
         if (audio && !isMutedRef.current) {
+          console.log(`🎵 Playing ${soundName}...`);
           audio.currentTime = 0; // Reset to start
           audio.play().catch((error: unknown) => {
-            console.log(`${soundName} interval play failed:`, error);
+            console.log(`❌ ${soundName} interval play failed:`, error);
+          }).then(() => {
+            console.log(`✅ ${soundName} played successfully`);
           });
+        } else if (isMutedRef.current) {
+          console.log(`🔇 ${soundName} blocked - audio is muted`);
+        } else {
+          console.log(`❌ ${soundName} blocked - audio element not found`);
         }
       };
 
@@ -56,35 +63,73 @@ export default function P5Background() {
       whatAudioRef.current = createAudioElement('/what.mp3', false, 1.0); // Interval sound
       whooshAudioRef.current = createAudioElement('/whoosh.mp3', false, 1.0); // Alternating interval sound
 
+      // Add event listeners to debug calm audio looping
+      if (calmAudioRef.current) {
+        calmAudioRef.current.addEventListener('ended', () => {
+          console.log('🔄 Calm audio ended - should restart due to loop');
+        });
+        calmAudioRef.current.addEventListener('pause', () => {
+          console.log('⏸ Calm audio paused');
+        });
+        calmAudioRef.current.addEventListener('play', () => {
+          console.log('▶️ Calm audio playing');
+        });
+        calmAudioRef.current.addEventListener('error', (e) => {
+          console.log('❌ Calm audio error:', e);
+        });
+      }
+
       // Add user interaction handler to start audio
       const startAudioOnInteraction = () => {
         if (!audioStartedRef.current && !isMutedRef.current) {
+          console.log('🎵 Starting audio system...');
+
           // Start calm audio immediately
           if (calmAudioRef.current) {
+            console.log('🎵 Starting calm.mp3...');
             calmAudioRef.current.play().catch((error: unknown) => {
-              console.log('Calm audio play failed:', error);
+              console.log('❌ Calm audio play failed:', error);
+            }).then(() => {
+              console.log('✅ Calm audio started successfully');
             });
           }
 
           // Schedule first interval sound (what.mp3) 10 seconds after start
           initialTimerRef.current = setTimeout(() => {
+            console.log('🎵 Playing first interval sound (what.mp3)...');
             playIntervalSound(whatAudioRef.current, 'What audio');
-            
-            // Then alternate between what.mp3 and whoosh.mp3 every 2 minutes
+
+            // Then play interval sounds every 45 seconds
             intervalTimerRef.current = setInterval(() => {
-              const currentSound = currentIntervalSoundRef.current;
-              
-              if (currentSound === 'what') {
-                playIntervalSound(whatAudioRef.current, 'What audio');
-                currentIntervalSoundRef.current = 'whoosh'; // Next time play whoosh
+              // Check if we're on the final page - if so, always play what.mp3
+              // Otherwise, always play whoosh.mp3 for the alternating intervals
+              const isOnFinalPage = window.location.pathname === '/final';
+
+              console.log(`🎵 Playing interval sound... (on final page: ${isOnFinalPage})`);
+
+              if (isOnFinalPage) {
+                playIntervalSound(whatAudioRef.current, 'What audio (final page)');
               } else {
-                playIntervalSound(whooshAudioRef.current, 'Whoosh audio'); 
-                currentIntervalSoundRef.current = 'what'; // Next time play what
+                playIntervalSound(whooshAudioRef.current, 'Whoosh audio');
               }
-            }, 120000); // 2 minutes = 120000ms
+            }, 45000); // 45 seconds = 45000ms
           }, 10000); // 10 seconds initial delay
 
           audioStartedRef.current = true;
+          console.log('🎵 Audio system initialized');
+
+          // Set up a periodic check to ensure calm audio keeps playing
+          calmWatchdogRef.current = setInterval(() => {
+            if (calmAudioRef.current && !isMutedRef.current && audioStartedRef.current) {
+              if (calmAudioRef.current.paused) {
+                console.log('🔄 Calm audio stopped - restarting...');
+                calmAudioRef.current.play().catch((error: unknown) => {
+                  console.log('❌ Calm audio restart failed:', error);
+                });
+              }
+            }
+          }, 5000); // Check every 5 seconds
+
           // Remove listeners after first successful play
           document.removeEventListener('click', startAudioOnInteraction);
           document.removeEventListener('keydown', startAudioOnInteraction);
@@ -221,14 +266,14 @@ export default function P5Background() {
 
         p.setup = () => {
           canvas = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
-          
+
           // Create shader
           waveShader = p.createShader(vertSource, fragSource);
         };
 
         p.draw = () => {
           if (!waveShader) return; // Safety check
-          
+
           // Use the shader
           p.shader(waveShader);
 
@@ -285,6 +330,10 @@ export default function P5Background() {
         clearInterval(intervalTimerRef.current);
         intervalTimerRef.current = null;
       }
+      if (calmWatchdogRef.current) {
+        clearInterval(calmWatchdogRef.current);
+        calmWatchdogRef.current = null;
+      }
       if (p5InstanceRef.current) {
         p5InstanceRef.current.remove();
         p5InstanceRef.current = null;
@@ -304,10 +353,12 @@ export default function P5Background() {
     const controlAudio = (audioRef: React.MutableRefObject<HTMLAudioElement | null>, shouldPlay: boolean = false) => {
       if (audioRef.current) {
         if (isMuted) {
+          console.log('🔇 Pausing audio due to mute');
           audioRef.current.pause();
         } else if (shouldPlay && audioStartedRef.current) {
+          console.log('🔊 Resuming audio after unmute');
           audioRef.current.play().catch((error: unknown) => {
-            console.log('Audio resume failed:', error);
+            console.log('❌ Audio resume failed:', error);
           });
         }
       }
@@ -334,7 +385,7 @@ export default function P5Background() {
     setAudioVolume(calmAudioRef, 0.7); // Maintain background layer quietness
     setAudioVolume(whatAudioRef, 1.0); // Full volume for interval sounds
     setAudioVolume(whooshAudioRef, 1.0); // Full volume for interval sounds
-    
+
     volumeRef.current = volume;
   }, [volume]);
 
