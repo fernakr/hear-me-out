@@ -45,10 +45,7 @@ body {
   inset: -10px;
 
   @media (min-width: 640px) {
-    top: -80px;
-    left: -80px;
-    right: -80px;
-    bottom: -80px;
+    inset: -100px;
   }
 }
 

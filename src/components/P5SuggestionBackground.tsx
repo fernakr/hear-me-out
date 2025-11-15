@@ -244,11 +244,16 @@ export default function P5SuggestionBackground({
             clickedElement.tagName === 'TEXTAREA' ||
             clickedElement.tagName === 'INPUT' ||
             clickedElement.tagName === 'BUTTON' ||
+            clickedElement.tagName === 'SELECT' ||
+            clickedElement.tagName === 'OPTION' ||
             clickedElement.tagName === 'A' ||
             clickedElement.closest('textarea') ||
             clickedElement.closest('input') ||
             clickedElement.closest('button') ||
-            clickedElement.closest('a')
+            clickedElement.closest('select') ||
+            clickedElement.closest('a') ||
+            clickedElement.closest('.content-container') || // Exclude entire input area
+            clickedElement.closest('.input-interaction-zone') // Exclude specific input zones
           )) {
             return true; // Allow default behavior for UI elements
           }
