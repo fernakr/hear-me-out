@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="text-center text-md md:text-xl lg:text-2xl content-container">
+    <div className="text-center text-lg md:text-2xl lg:text-3xl content-container leading-tight">
       <h1 className="mb-3 font-bold">This experience requires introspection and vulnerability.<br /> If you are willing to take this on, proceed.</h1>
       <Link
         href="/questionnaire"
