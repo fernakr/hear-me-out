@@ -197,17 +197,17 @@ export default function P5Background() {
               return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
             }
             
-            // Subtle continuous mouse distortion field
+            // Subtle continuous mouse distortion field - slower and more subtle for text readability
             float mouseDistortion(vec2 uv, vec2 mousePos, float time) {
               float dist = distance(uv, mousePos);
               
-              // Continuous field that doesn't fade - always present when mouse has been active
-              float field1 = sin(time * 0.8 + dist * 4.0) * exp(-dist * 1.5) * 0.15;
-              float field2 = cos(time * 0.6 + dist * 3.0) * exp(-dist * 2.0) * 0.12;
-              float field3 = sin(time * 1.0 + dist * 5.0) * exp(-dist * 2.5) * 0.08;
+              // Continuous field that doesn't fade - much more subtle intensities
+              float field1 = sin(time * 0.3 + dist * 4.0) * exp(-dist * 1.5) * 0.06;
+              float field2 = cos(time * 0.2 + dist * 3.0) * exp(-dist * 2.0) * 0.05;
+              float field3 = sin(time * 0.4 + dist * 5.0) * exp(-dist * 2.5) * 0.03;
               
-              // Add some gentle ripples that continue radiating
-              float ripple = sin(dist * 12.0 - time * 2.0) * exp(-dist * 1.8) * 0.1;
+              // Add some gentle ripples that continue radiating - much more subtle
+              float ripple = sin(dist * 12.0 - time * 0.8) * exp(-dist * 1.8) * 0.04;
               
               return field1 + field2 + field3 + ripple;
             }
@@ -279,62 +279,62 @@ export default function P5Background() {
               // Base ocean waves
               float oceanPattern = oceanWaves(uv, u_time);
               
-              // Combine all effects with mouse field being subtle but persistent
-              float totalEffect = oceanPattern + globalPattern * 0.8 + mouseField * 1.5;
+              // Combine all effects with much more subtle mouse field for text readability
+              float totalEffect = oceanPattern + globalPattern * 0.8 + mouseField * 0.6;
               
               // Normalize and smooth the effect
               float effectIntensity = (totalEffect + 1.5) * 0.4;
               effectIntensity = clamp(effectIntensity, 0.0, 1.0);
               
-              // Rich vibrant color palette with lots of pinky purples - back to vibrant version
-              vec3 color1 = vec3(0.9, 0.7, 1.0);        // Rich pinky purple
-              vec3 color2 = vec3(1.0, 0.75, 0.95);      // Bright pink
-              vec3 color3 = vec3(0.85, 0.7, 1.0);       // Deep lavender
-              vec3 color4 = vec3(1.0, 0.8, 0.9);        // Rose pink
-              vec3 color5 = vec3(0.95, 0.65, 1.0);      // Vibrant magenta
-              vec3 color6 = vec3(0.8, 0.85, 1.0);       // Periwinkle blue
-              vec3 color7 = vec3(1.0, 0.7, 0.85);       // Coral pink
-              vec3 color8 = vec3(0.75, 0.8, 1.0);       // Soft blue purple
-              vec3 color9 = vec3(1.0, 0.85, 0.8);       // Peach pink
-              vec3 color10 = vec3(0.8, 0.75, 1.0);      // Purple blue
+              // Sky blue and pastel purple palette with subtle pink hints
+              vec3 color1 = vec3(0.8, 0.85, 1.0);       // Sky blue
+              vec3 color2 = vec3(0.85, 0.8, 1.0);       // Soft lavender
+              vec3 color3 = vec3(0.78, 0.82, 1.0);      // Light periwinkle
+              vec3 color4 = vec3(0.82, 0.78, 1.0);      // Pastel purple
+              vec3 color5 = vec3(0.9, 0.85, 1.0);       // Very light purple
+              vec3 color6 = vec3(0.75, 0.85, 1.0);      // Deeper sky blue
+              vec3 color7 = vec3(0.88, 0.82, 1.0);      // Hint of pink purple
+              vec3 color8 = vec3(0.8, 0.9, 1.0);        // Light sky blue
+              vec3 color9 = vec3(0.92, 0.88, 1.0);      // Subtle pink tint
+              vec3 color10 = vec3(0.76, 0.83, 1.0);     // Medium sky blue
               
-              // Much more dynamic color mixing with pinky purple focus
+              // Sky blue and pastel purple focused color mixing
               float colorMixX = sin(uv.x * 4.0 + u_time * 0.15) * 0.5 + 0.5;
               float colorMixY = sin(uv.y * 3.5 + u_time * 0.18) * 0.5 + 0.5;
               float colorMixTime = sin(u_time * 0.12) * 0.5 + 0.5;
               float colorMixDiag = sin((uv.x + uv.y) * 3.0 + u_time * 0.2) * 0.5 + 0.5;
               
-              // Start with pinky purple base
-              vec3 baseColor = mix(color1, color2, colorMixX);
-              baseColor = mix(baseColor, color3, colorMixY * 0.9);
-              baseColor = mix(baseColor, color5, colorMixTime * 0.7);
-              baseColor = mix(baseColor, color7, colorMixDiag * 0.6);
+              // Start with sky blue and purple base
+              vec3 baseColor = mix(color1, color2, colorMixX);        // Sky blue to lavender
+              baseColor = mix(baseColor, color3, colorMixY * 0.8);    // Add periwinkle
+              baseColor = mix(baseColor, color4, colorMixTime * 0.6); // Add pastel purple
+              baseColor = mix(baseColor, color8, colorMixDiag * 0.5); // Add light sky blue
               
-              // Mouse area gets rich pinky purple enhancement
+              // Mouse area gets sky blue purple enhancement
               float mouseDistance = distance(uv, u_mouse);
               float mouseProximity = exp(-mouseDistance * 1.8);
-              baseColor = mix(baseColor, color4, mouseProximity * 1.0);
-              baseColor = mix(baseColor, color1, mouseProximity * 0.8);
+              baseColor = mix(baseColor, color6, mouseProximity * 0.8);  // Deeper sky blue
+              baseColor = mix(baseColor, color5, mouseProximity * 0.6);  // Light purple
               
-              // Global effects add more pinky purple variation
+              // Global effects add sky blue and purple variation
               float normalizedEffect = clamp((effectIntensity - 0.1) * 3.0, 0.0, 1.0);
-              baseColor = mix(baseColor, color5, normalizedEffect * 0.9);
-              baseColor = mix(baseColor, color3, abs(globalPattern) * 0.8);
+              baseColor = mix(baseColor, color8, normalizedEffect * 0.7);  // Light sky blue
+              baseColor = mix(baseColor, color2, abs(globalPattern) * 0.6); // Soft lavender
               
-              // Add dynamic pinky purple zones
+              // Add dynamic sky blue purple zones
               float zoneEffect1 = sin(uv.x * 6.0 + u_time * 0.25) * 0.5 + 0.5;
               float zoneEffect2 = cos(uv.y * 5.0 - u_time * 0.3) * 0.5 + 0.5;
               float spiralEffect = sin(atan(uv.y - 0.5, uv.x - 0.5) * 3.0 + u_time * 0.4) * 0.5 + 0.5;
               
-              baseColor = mix(baseColor, color2, zoneEffect1 * 0.6);
-              baseColor = mix(baseColor, color10, zoneEffect2 * 0.5);
-              baseColor = mix(baseColor, color6, spiralEffect * 0.4);
+              baseColor = mix(baseColor, color10, zoneEffect1 * 0.5);    // Medium sky blue
+              baseColor = mix(baseColor, color4, zoneEffect2 * 0.4);     // Pastel purple
+              baseColor = mix(baseColor, color3, spiralEffect * 0.3);    // Light periwinkle
               
-              // Add extra pinky purple layers for richness
-              float extraPink1 = sin(uv.x * uv.y * 20.0 + u_time * 0.1) * 0.5 + 0.5;
-              float extraPink2 = cos(length(uv - vec2(0.5)) * 8.0 + u_time * 0.15) * 0.5 + 0.5;
-              baseColor = mix(baseColor, color9, extraPink1 * 0.3);
-              baseColor = mix(baseColor, color8, extraPink2 * 0.4);
+              // Add subtle pink hints sparingly
+              float extraBlue1 = sin(uv.x * uv.y * 20.0 + u_time * 0.1) * 0.5 + 0.5;
+              float extraBlue2 = cos(length(uv - vec2(0.5)) * 8.0 + u_time * 0.15) * 0.5 + 0.5;
+              baseColor = mix(baseColor, color7, extraBlue1 * 0.2);      // Hint of pink purple (subtle)
+              baseColor = mix(baseColor, color9, extraBlue2 * 0.15);     // Very subtle pink tint
               
               // Enhanced halftone pattern that enhances colors instead of graying them
               float halftoneSize = 18.0 + sin(u_time * 0.15) * 3.0 + totalEffect * 6.0;
@@ -355,8 +355,8 @@ export default function P5Background() {
               float waveHighlight = smoothstep(0.3, 0.7, effectIntensity) * 0.06;
               finalColor += vec3(mouseGlow + waveHighlight);
               
-              // Ensure vibrant colors with no gray bleed-through
-              finalColor = clamp(finalColor, vec3(0.75, 0.7, 0.85), vec3(1.0));
+              // Ensure sky blue and pastel purple tones with no grays
+              finalColor = clamp(finalColor, vec3(0.75, 0.8, 0.9), vec3(1.0));
               
               gl_FragColor = vec4(finalColor, 1.0);
             }
@@ -454,23 +454,23 @@ export default function P5Background() {
           // - WebGL fragment coords have origin at bottom-left, but p5 mouse has origin at top-left
           const rawX = p.mouseX;
           const rawY = p.mouseY;
-          
+
           // Normalize to 0-1 range and flip Y coordinate for WebGL shader
           mouseX = rawX / p.width;
           mouseY = 1.0 - (rawY / p.height); // Flip Y: 0 at top becomes 1, height at bottom becomes 0
-          
+
           // Clamp to ensure we stay within bounds
           mouseX = Math.max(0, Math.min(1, mouseX));
           mouseY = Math.max(0, Math.min(1, mouseY));
-          
+
           // Set mouse influence
           mouseInfluence = 1.0;
-          
+
           // Store coordinates globally for testing
           if (typeof window !== 'undefined') {
             (window as typeof window & { lastMouseCoords?: { x: number; y: number } }).lastMouseCoords = { x: mouseX, y: mouseY };
           }
-          
+
           console.log(`Mouse at: screen(${rawX.toFixed(1)}, ${rawY.toFixed(1)}) normalized(${mouseX.toFixed(3)}, ${mouseY.toFixed(3)}) canvas(${p.width}x${p.height})`);
         };
 
