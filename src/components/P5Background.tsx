@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 import { useMotion } from './MotionContext';
 import { useAudio } from './AudioContext';
 
@@ -16,21 +15,11 @@ export default function P5Background() {
   const calmWatchdogRef = useRef<NodeJS.Timeout | null>(null);
   const { reducedMotion } = useMotion();
   const { isMuted, volume } = useAudio();
-  const pathname = usePathname();
   const reducedMotionRef = useRef<boolean>(reducedMotion);
   const isMutedRef = useRef<boolean>(isMuted);
   const volumeRef = useRef<number>(volume);
   const audioStartedRef = useRef<boolean>(false);
   const startAudioHandlerRef = useRef<(() => void) | null>(null);
-
-  // Add a global flag to persist audio state across HMR refreshes during development
-  useEffect(() => {
-    // Check if audio system was already started in a previous component instance
-    if (typeof window !== 'undefined' && (window as any).__audioSystemStarted) {
-      audioStartedRef.current = true;
-      console.log('🔄 Audio system already started - persisting across HMR');
-    }
-  }, []);
 
   // Update refs when values change
   reducedMotionRef.current = reducedMotion;
@@ -105,81 +94,29 @@ export default function P5Background() {
             });
           }
 
-          // Schedule first interval sound 1 second after start
+          // Schedule first interval sound (what.mp3) 10 seconds after start
           initialTimerRef.current = setTimeout(() => {
-            // Check if we're on the final page for the initial sound too
-            const isOnFinalPage = window.location.pathname === '/final';
-            
-            console.log(`🎵 Playing first interval sound... (on final page: ${isOnFinalPage})`);
-            
-            // Function to schedule next interval sound after current one ends + 30 seconds
-            const scheduleNextIntervalSound = () => {
-              const currentIsOnFinalPage = window.location.pathname === '/final';
-              const audioToPlay = currentIsOnFinalPage ? whatAudioRef.current : whooshAudioRef.current;
-              const soundName = currentIsOnFinalPage ? 'What audio (final page)' : 'Whoosh audio';
-              
-              if (audioToPlay && !isMutedRef.current) {
-                console.log(`🎵 Playing ${soundName}...`);
-                audioToPlay.currentTime = 0;
-                
-                // Set up event listener for when this sound ends
-                const handleSoundEnd = () => {
-                  console.log(`🎵 ${soundName} ended, scheduling next in 30 seconds...`);
-                  audioToPlay.removeEventListener('ended', handleSoundEnd);
-                  
-                  // Schedule next sound 30 seconds after this one ends
-                  intervalTimerRef.current = setTimeout(() => {
-                    scheduleNextIntervalSound();
-                  }, 30000);
-                };
-                
-                audioToPlay.addEventListener('ended', handleSoundEnd);
-                
-                audioToPlay.play().catch((error: unknown) => {
-                  console.log(`❌ ${soundName} play failed:`, error);
-                  audioToPlay.removeEventListener('ended', handleSoundEnd);
-                  // If play fails, try again in 30 seconds
-                  intervalTimerRef.current = setTimeout(() => {
-                    scheduleNextIntervalSound();
-                  }, 30000);
-                });
+            console.log('🎵 Playing first interval sound (what.mp3)...');
+            playIntervalSound(whatAudioRef.current, 'What audio');
+
+            // Then play interval sounds every 45 seconds
+            intervalTimerRef.current = setInterval(() => {
+              // Check if we're on the final page - if so, always play what.mp3
+              // Otherwise, always play whoosh.mp3 for the alternating intervals
+              const isOnFinalPage = window.location.pathname === '/final';
+
+              console.log(`🎵 Playing interval sound... (on final page: ${isOnFinalPage})`);
+
+              if (isOnFinalPage) {
+                playIntervalSound(whatAudioRef.current, 'What audio (final page)');
+              } else {
+                playIntervalSound(whooshAudioRef.current, 'Whoosh audio');
               }
-            };
-            
-            if (isOnFinalPage) {
-              playIntervalSound(whatAudioRef.current, 'What audio (final page - initial)');
-              // Set up the duration-based scheduling after initial sound
-              if (whatAudioRef.current) {
-                const handleInitialEnd = () => {
-                  whatAudioRef.current?.removeEventListener('ended', handleInitialEnd);
-                  intervalTimerRef.current = setTimeout(() => {
-                    scheduleNextIntervalSound();
-                  }, 30000);
-                };
-                whatAudioRef.current.addEventListener('ended', handleInitialEnd);
-              }
-            } else {
-              playIntervalSound(whooshAudioRef.current, 'Whoosh audio (initial)');
-              // Set up the duration-based scheduling after initial sound
-              if (whooshAudioRef.current) {
-                const handleInitialEnd = () => {
-                  whooshAudioRef.current?.removeEventListener('ended', handleInitialEnd);
-                  intervalTimerRef.current = setTimeout(() => {
-                    scheduleNextIntervalSound();
-                  }, 30000);
-                };
-                whooshAudioRef.current.addEventListener('ended', handleInitialEnd);
-              }
-            }
-          }, 1000); // 1 second initial delay
+            }, 45000); // 45 seconds = 45000ms
+          }, 10000); // 10 seconds initial delay
 
           audioStartedRef.current = true;
           console.log('🎵 Audio system initialized');
-          
-          // Set global flag for HMR persistence
-          if (typeof window !== 'undefined') {
-            (window as any).__audioSystemStarted = true;
-          }
 
           // Set up a periodic check to ensure calm audio keeps playing
           calmWatchdogRef.current = setInterval(() => {
@@ -211,139 +148,294 @@ export default function P5Background() {
       const sketch = (p: any) => {
         let time = 0;
         let waveShader: any;
-        let canvas: any;
+        let mouseX = 0.5;
+        let mouseY = 0.5;
+        let lerpedMouseX = 0.5;
+        let lerpedMouseY = 0.5;
+        let mouseInfluence = 0.0;
 
-        // Vertex shader (standard)
+        // Simple vertex shader
         const vertSource = `
-          attribute vec3 aPosition;
-          attribute vec2 aTexCoord;
-          varying vec2 vTexCoord;
-          
-          void main() {
-            vTexCoord = aTexCoord;
-            vec4 positionVec4 = vec4(aPosition, 1.0);
-            positionVec4.xy = positionVec4.xy * 2.0 - 1.0;
-            gl_Position = positionVec4;
-          }
-        `;
+            attribute vec3 aPosition;
+            attribute vec2 aTexCoord;
+            varying vec2 vTexCoord;
+            
+            void main() {
+              vTexCoord = aTexCoord;
+              vec4 positionVec4 = vec4(aPosition, 1.0);
+              positionVec4.xy = positionVec4.xy * 2.0 - 1.0;
+              gl_Position = positionVec4;
+            }
+          `;
 
-        // Fragment shader with ocean waves and halftone
+        // Enhanced fragment shader with more global rippling and subtle continuous mouse distortion
         const fragSource = `
-          precision mediump float;
-          varying vec2 vTexCoord;
-          uniform float u_time;
-          uniform vec2 u_resolution;
-          
-          // Noise function for organic wave movement
-          float noise(vec2 st) {
-            return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-          }
-          
-          // Smooth noise
-          float smoothNoise(vec2 st) {
-            vec2 i = floor(st);
-            vec2 f = fract(st);
+            precision mediump float;
+            varying vec2 vTexCoord;
+            uniform float u_time;
+            uniform vec2 u_resolution;
+            uniform vec2 u_mouse;
+            uniform float u_mouseInfluence;
             
-            float a = noise(i);
-            float b = noise(i + vec2(1.0, 0.0));
-            float c = noise(i + vec2(0.0, 1.0));
-            float d = noise(i + vec2(1.0, 1.0));
+            // Simple noise function
+            float noise(vec2 st) {
+              return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+            }
             
-            vec2 u = f * f * (3.0 - 2.0 * f);
+            // Smooth noise
+            float smoothNoise(vec2 st) {
+              vec2 i = floor(st);
+              vec2 f = fract(st);
+              
+              float a = noise(i);
+              float b = noise(i + vec2(1.0, 0.0));
+              float c = noise(i + vec2(0.0, 1.0));
+              float d = noise(i + vec2(1.0, 1.0));
+              
+              vec2 u = f * f * (3.0 - 2.0 * f);
+              
+              return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+            }
             
-            return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
-          }
-          
-          // Ocean wave function
-          float oceanWave(vec2 uv, float time) {
-            float wave = 0.0;
+            // Subtle continuous mouse distortion field
+            float mouseDistortion(vec2 uv, vec2 mousePos, float time) {
+              float dist = distance(uv, mousePos);
+              
+              // Continuous field that doesn't fade - always present when mouse has been active
+              float field1 = sin(time * 0.8 + dist * 4.0) * exp(-dist * 1.5) * 0.15;
+              float field2 = cos(time * 0.6 + dist * 3.0) * exp(-dist * 2.0) * 0.12;
+              float field3 = sin(time * 1.0 + dist * 5.0) * exp(-dist * 2.5) * 0.08;
+              
+              // Add some gentle ripples that continue radiating
+              float ripple = sin(dist * 12.0 - time * 2.0) * exp(-dist * 1.8) * 0.1;
+              
+              return field1 + field2 + field3 + ripple;
+            }
             
-            // Multiple wave layers for complexity
-            wave += sin(uv.x * 3.0 + time * 0.5) * 0.3;
-            wave += sin(uv.x * 7.0 - time * 0.3) * 0.15;
-            wave += sin(uv.y * 2.0 + time * 0.4) * 0.2;
-            wave += sin(uv.y * 5.0 - time * 0.6) * 0.1;
+            // Enhanced global background ripples
+            float globalRipples(vec2 uv, float time) {
+              float ripples = 0.0;
+              
+              // Multiple ripple sources across the canvas
+              vec2 center1 = vec2(0.5, 0.5);
+              float dist1 = length(uv - center1);
+              ripples += sin(dist1 * 8.0 - time * 1.2) * exp(-dist1 * 1.5) * 0.3;
+              
+              vec2 center2 = vec2(0.2, 0.8) + sin(time * 0.4) * 0.1;
+              float dist2 = length(uv - center2);
+              ripples += sin(dist2 * 12.0 - time * 1.5) * exp(-dist2 * 2.0) * 0.25;
+              
+              vec2 center3 = vec2(0.8, 0.3) + cos(time * 0.3) * 0.1;
+              float dist3 = length(uv - center3);
+              ripples += sin(dist3 * 10.0 - time * 1.0) * exp(-dist3 * 1.8) * 0.2;
+              
+              vec2 center4 = vec2(0.7, 0.7) + sin(time * 0.5) * 0.08;
+              float dist4 = length(uv - center4);
+              ripples += sin(dist4 * 15.0 - time * 1.8) * exp(-dist4 * 2.5) * 0.18;
+              
+              // Add traveling waves
+              ripples += sin(uv.x * 4.0 + time * 0.8) * 0.12;
+              ripples += sin(uv.y * 3.0 - time * 0.6) * 0.1;
+              ripples += sin((uv.x + uv.y) * 5.0 + time * 0.7) * 0.08;
+              
+              return ripples;
+            }
             
-            // Add noise for organic movement
-            wave += smoothNoise(uv * 4.0 + time * 0.1) * 0.2;
-            wave += smoothNoise(uv * 8.0 - time * 0.05) * 0.1;
+            // Ocean-like base waves
+            float oceanWaves(vec2 uv, float time) {
+              float wave = 0.0;
+              
+              // Layered wave patterns
+              wave += sin(uv.x * 3.0 + time * 0.4) * 0.2;
+              wave += sin(uv.x * 6.0 - time * 0.3) * 0.15;
+              wave += sin(uv.y * 2.5 + time * 0.35) * 0.18;
+              wave += sin(uv.y * 4.5 - time * 0.4) * 0.12;
+              
+              // Organic noise movement
+              wave += smoothNoise(uv * 4.0 + time * 0.06) * 0.2;
+              wave += smoothNoise(uv * 8.0 - time * 0.04) * 0.1;
+              
+              return wave;
+            }
             
-            return wave;
-          }
-          
-          // Halftone pattern function
-          float halftone(vec2 uv, float size, float intensity) {
-            vec2 grid = fract(uv * size);
-            vec2 center = vec2(0.5, 0.5);
-            float dist = distance(grid, center);
+            // Halftone dots
+            float halftone(vec2 uv, float size, float intensity) {
+              vec2 grid = fract(uv * size);
+              vec2 center = vec2(0.5);
+              float dist = distance(grid, center);
+              float dotSize = intensity * 0.4 + 0.1;
+              return smoothstep(dotSize, dotSize - 0.1, dist);
+            }
             
-            // Create halftone dots that vary with intensity
-            float dotSize = intensity * 0.4 + 0.1;
-            return smoothstep(dotSize, dotSize - 0.1, dist);
-          }
-          
-          void main() {
-            vec2 uv = vTexCoord;
-            vec2 st = gl_FragCoord.xy / u_resolution.xy;
-            
-            // Create ocean wave
-            float wave = oceanWave(st * 2.0, u_time);
-            
-            // Normalize wave to 0-1 range
-            float waveIntensity = (wave + 1.0) * 0.5;
-            
-            // Base ocean colors (soft pastels)
-            vec3 color1 = vec3(0.9, 0.95, 1.0);    // Very light blue
-            vec3 color2 = vec3(0.95, 0.9, 1.0);    // Very light lavender
-            vec3 color3 = vec3(0.9, 1.0, 0.95);    // Very light mint
-            vec3 color4 = vec3(1.0, 0.95, 0.9);    // Very light peach
-            
-            // Mix colors based on wave and position
-            vec3 baseColor = mix(color1, color2, sin(st.x * 2.0 + u_time * 0.1) * 0.5 + 0.5);
-            baseColor = mix(baseColor, color3, sin(st.y * 3.0 + u_time * 0.15) * 0.3 + 0.3);
-            baseColor = mix(baseColor, color4, waveIntensity * 0.2);
-            
-            // Create halftone effect
-            float halftoneSize = 20.0 + sin(u_time * 0.1) * 5.0; // Animated halftone size
-            float halftonePattern = halftone(st + wave * 0.1, halftoneSize, waveIntensity);
-            
-            // Secondary halftone layer for more detail
-            float halftone2 = halftone(st * 1.5 + wave * 0.05, halftoneSize * 1.5, waveIntensity * 0.7);
-            
-            // Combine halftone patterns
-            float finalHalftone = halftonePattern * 0.7 + halftone2 * 0.3;
-            
-            // Apply halftone to color with gentle opacity
-            vec3 halftoneColor = baseColor * (0.95 + finalHalftone * 0.05);
-            
-            // Add subtle wave highlighting
-            float waveHighlight = smoothstep(0.6, 0.8, waveIntensity) * 0.03;
-            halftoneColor += vec3(waveHighlight);
-            
-            // Ensure colors stay in pastel range
-            halftoneColor = clamp(halftoneColor, vec3(0.85), vec3(1.0));
-            
-            gl_FragColor = vec4(halftoneColor, 1.0);
-          }
-        `;
+            void main() {
+              vec2 uv = vTexCoord;
+              
+              // Create continuous mouse distortion field (always active, not dependent on mouseInfluence)
+              float mouseField = mouseDistortion(uv, u_mouse, u_time);
+              
+              // Enhanced global ripple system
+              float globalPattern = globalRipples(uv, u_time);
+              
+              // Base ocean waves
+              float oceanPattern = oceanWaves(uv, u_time);
+              
+              // Combine all effects with mouse field being subtle but persistent
+              float totalEffect = oceanPattern + globalPattern * 0.8 + mouseField * 1.5;
+              
+              // Normalize and smooth the effect
+              float effectIntensity = (totalEffect + 1.5) * 0.4;
+              effectIntensity = clamp(effectIntensity, 0.0, 1.0);
+              
+              // Rich vibrant color palette with lots of pinky purples - back to vibrant version
+              vec3 color1 = vec3(0.9, 0.7, 1.0);        // Rich pinky purple
+              vec3 color2 = vec3(1.0, 0.75, 0.95);      // Bright pink
+              vec3 color3 = vec3(0.85, 0.7, 1.0);       // Deep lavender
+              vec3 color4 = vec3(1.0, 0.8, 0.9);        // Rose pink
+              vec3 color5 = vec3(0.95, 0.65, 1.0);      // Vibrant magenta
+              vec3 color6 = vec3(0.8, 0.85, 1.0);       // Periwinkle blue
+              vec3 color7 = vec3(1.0, 0.7, 0.85);       // Coral pink
+              vec3 color8 = vec3(0.75, 0.8, 1.0);       // Soft blue purple
+              vec3 color9 = vec3(1.0, 0.85, 0.8);       // Peach pink
+              vec3 color10 = vec3(0.8, 0.75, 1.0);      // Purple blue
+              
+              // Much more dynamic color mixing with pinky purple focus
+              float colorMixX = sin(uv.x * 4.0 + u_time * 0.15) * 0.5 + 0.5;
+              float colorMixY = sin(uv.y * 3.5 + u_time * 0.18) * 0.5 + 0.5;
+              float colorMixTime = sin(u_time * 0.12) * 0.5 + 0.5;
+              float colorMixDiag = sin((uv.x + uv.y) * 3.0 + u_time * 0.2) * 0.5 + 0.5;
+              
+              // Start with pinky purple base
+              vec3 baseColor = mix(color1, color2, colorMixX);
+              baseColor = mix(baseColor, color3, colorMixY * 0.9);
+              baseColor = mix(baseColor, color5, colorMixTime * 0.7);
+              baseColor = mix(baseColor, color7, colorMixDiag * 0.6);
+              
+              // Mouse area gets rich pinky purple enhancement
+              float mouseDistance = distance(uv, u_mouse);
+              float mouseProximity = exp(-mouseDistance * 1.8);
+              baseColor = mix(baseColor, color4, mouseProximity * 1.0);
+              baseColor = mix(baseColor, color1, mouseProximity * 0.8);
+              
+              // Global effects add more pinky purple variation
+              float normalizedEffect = clamp((effectIntensity - 0.1) * 3.0, 0.0, 1.0);
+              baseColor = mix(baseColor, color5, normalizedEffect * 0.9);
+              baseColor = mix(baseColor, color3, abs(globalPattern) * 0.8);
+              
+              // Add dynamic pinky purple zones
+              float zoneEffect1 = sin(uv.x * 6.0 + u_time * 0.25) * 0.5 + 0.5;
+              float zoneEffect2 = cos(uv.y * 5.0 - u_time * 0.3) * 0.5 + 0.5;
+              float spiralEffect = sin(atan(uv.y - 0.5, uv.x - 0.5) * 3.0 + u_time * 0.4) * 0.5 + 0.5;
+              
+              baseColor = mix(baseColor, color2, zoneEffect1 * 0.6);
+              baseColor = mix(baseColor, color10, zoneEffect2 * 0.5);
+              baseColor = mix(baseColor, color6, spiralEffect * 0.4);
+              
+              // Add extra pinky purple layers for richness
+              float extraPink1 = sin(uv.x * uv.y * 20.0 + u_time * 0.1) * 0.5 + 0.5;
+              float extraPink2 = cos(length(uv - vec2(0.5)) * 8.0 + u_time * 0.15) * 0.5 + 0.5;
+              baseColor = mix(baseColor, color9, extraPink1 * 0.3);
+              baseColor = mix(baseColor, color8, extraPink2 * 0.4);
+              
+              // Enhanced halftone pattern that enhances colors instead of graying them
+              float halftoneSize = 18.0 + sin(u_time * 0.15) * 3.0 + totalEffect * 6.0;
+              float halftonePattern = halftone(uv + totalEffect * 0.12, halftoneSize, effectIntensity);
+              
+              // Secondary halftone layer
+              float halftone2 = halftone(uv * 1.2 + mouseField * 0.2, halftoneSize * 1.1, effectIntensity * 0.9);
+              
+              // Combine halftone patterns
+              float finalHalftone = halftonePattern * 0.7 + halftone2 * 0.3;
+              
+              // Apply halftone as color enhancement instead of gray overlay
+              // Use additive blending to brighten colors rather than darken
+              vec3 finalColor = baseColor + baseColor * finalHalftone * 0.15;
+              
+              // Subtle highlights for mouse area and wave peaks
+              float mouseGlow = mouseProximity * 0.08;
+              float waveHighlight = smoothstep(0.3, 0.7, effectIntensity) * 0.06;
+              finalColor += vec3(mouseGlow + waveHighlight);
+              
+              // Ensure vibrant colors with no gray bleed-through
+              finalColor = clamp(finalColor, vec3(0.75, 0.7, 0.85), vec3(1.0));
+              
+              gl_FragColor = vec4(finalColor, 1.0);
+            }
+          `;
 
         p.setup = () => {
-          canvas = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+          p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
 
-          // Create shader
-          waveShader = p.createShader(vertSource, fragSource);
+          // Create shader with error handling
+          try {
+            waveShader = p.createShader(vertSource, fragSource);
+            console.log('Shader created successfully');
+          } catch (error) {
+            console.error('Failed to create shader:', error);
+            waveShader = null;
+          }
         };
 
         p.draw = () => {
-          if (!waveShader) return; // Safety check
+          // Fallback rendering if shader fails to load
+          if (!waveShader) {
+            // Simple fallback background with basic effects
+            p.background(240, 245, 255, 255); // Light pastel blue background
+
+            // Add some simple animated effects without shader
+            const currentTime = reducedMotionRef.current ? 0 : time * 0.02;
+
+            // Simple animated gradient overlay
+            for (let i = 0; i < 20; i++) {
+              const alpha = 10 + Math.sin(currentTime + i * 0.5) * 5;
+              p.fill(220 + i, 230 + i, 250, alpha);
+              p.noStroke();
+              const size = 50 + Math.sin(currentTime * 0.5 + i) * 20;
+              const x = (Math.sin(currentTime * 0.1 + i) * p.width / 4);
+              const y = (Math.cos(currentTime * 0.15 + i) * p.height / 4);
+              p.ellipse(x, y, size, size);
+            }
+
+            // Mouse effects fallback
+            if (mouseInfluence > 0.1) {
+              const mouseScreenX = mouseX * p.width - p.width / 2;
+              const mouseScreenY = mouseY * p.height - p.height / 2;
+
+              for (let i = 0; i < 5; i++) {
+                const alpha = mouseInfluence * 20 * (1 - i * 0.2);
+                p.fill(200, 220, 255, alpha);
+                p.noStroke();
+                const size = 30 + i * 15;
+                p.ellipse(mouseScreenX, mouseScreenY, size, size);
+              }
+            }
+
+            // Increment time for animation
+            if (!reducedMotionRef.current) {
+              time++;
+            }
+            return;
+          }
 
           // Use the shader
           p.shader(waveShader);
+
+          // Simple mouse influence decay
+          if (mouseInfluence > 0) {
+            mouseInfluence -= 0.01; // Gradual decay
+            mouseInfluence = Math.max(0, mouseInfluence);
+          }
+
+          // Smooth mouse position lerping (adjust lerp factor for responsiveness)
+          const lerpFactor = 0.08; // Lower = smoother, higher = more responsive
+          lerpedMouseX += (mouseX - lerpedMouseX) * lerpFactor;
+          lerpedMouseY += (mouseY - lerpedMouseY) * lerpFactor;
 
           // Pass uniforms to shader - only increment time if motion is not reduced
           const currentTime = reducedMotionRef.current ? 0 : time * 0.02;
           waveShader.setUniform('u_time', currentTime);
           waveShader.setUniform('u_resolution', [p.width, p.height]);
+          waveShader.setUniform('u_mouse', [lerpedMouseX, lerpedMouseY]); // Use lerped position
+          waveShader.setUniform('u_mouseInfluence', mouseInfluence);
 
           // Draw a rectangle that covers the entire canvas
           p.rect(-p.width / 2, -p.height / 2, p.width, p.height);
@@ -352,6 +444,40 @@ export default function P5Background() {
           if (!reducedMotionRef.current) {
             time++;
           }
+        };
+
+        p.mouseMoved = () => {
+          // ✅ WORKING MOUSE TRACKING SOLUTION - DO NOT CHANGE! ✅
+          // This coordinate mapping works correctly for WebGL shader coordinates:
+          // - X: Direct mapping (0 to 1 from left to right)  
+          // - Y: MUST BE FLIPPED with (1.0 - rawY/height) for proper shader mapping
+          // - WebGL fragment coords have origin at bottom-left, but p5 mouse has origin at top-left
+          const rawX = p.mouseX;
+          const rawY = p.mouseY;
+          
+          // Normalize to 0-1 range and flip Y coordinate for WebGL shader
+          mouseX = rawX / p.width;
+          mouseY = 1.0 - (rawY / p.height); // Flip Y: 0 at top becomes 1, height at bottom becomes 0
+          
+          // Clamp to ensure we stay within bounds
+          mouseX = Math.max(0, Math.min(1, mouseX));
+          mouseY = Math.max(0, Math.min(1, mouseY));
+          
+          // Set mouse influence
+          mouseInfluence = 1.0;
+          
+          // Store coordinates globally for testing
+          if (typeof window !== 'undefined') {
+            (window as typeof window & { lastMouseCoords?: { x: number; y: number } }).lastMouseCoords = { x: mouseX, y: mouseY };
+          }
+          
+          console.log(`Mouse at: screen(${rawX.toFixed(1)}, ${rawY.toFixed(1)}) normalized(${mouseX.toFixed(3)}, ${mouseY.toFixed(3)}) canvas(${p.width}x${p.height})`);
+        };
+
+        p.mouseExited = () => {
+          // Gradually reduce influence when mouse leaves
+          mouseInfluence = 0.5;
+          console.log('Mouse exited canvas');
         };
 
         p.windowResized = () => {
@@ -390,7 +516,7 @@ export default function P5Background() {
         initialTimerRef.current = null;
       }
       if (intervalTimerRef.current) {
-        clearTimeout(intervalTimerRef.current);
+        clearInterval(intervalTimerRef.current);
         intervalTimerRef.current = null;
       }
       if (calmWatchdogRef.current) {
@@ -451,55 +577,6 @@ export default function P5Background() {
 
     volumeRef.current = volume;
   }, [volume]);
-
-  // Handle page transitions for audio changes
-  useEffect(() => {
-    if (audioStartedRef.current) {
-      const isOnFinalPage = pathname === '/final';
-      
-      // If we just moved to the final page, fade out any playing interval sounds
-      if (isOnFinalPage) {
-        console.log('🎵 Transitioning to final page - fading out interval sounds...');
-        
-        // Fade out whoosh if it's currently playing
-        if (whooshAudioRef.current && !whooshAudioRef.current.paused) {
-          // Inline fade function since we can't reference the inner function
-          const fadeOutAudio = (audio: HTMLAudioElement, duration: number = 1000): Promise<void> => {
-            return new Promise((resolve) => {
-              const startVolume = audio.volume;
-              const fadeStep = startVolume / (duration / 50); // 50ms intervals
-              
-              const fadeInterval = setInterval(() => {
-                if (audio.volume > 0) {
-                  audio.volume = Math.max(0, audio.volume - fadeStep);
-                } else {
-                  clearInterval(fadeInterval);
-                  audio.pause();
-                  audio.volume = startVolume; // Reset volume for next play
-                  resolve();
-                }
-              }, 50);
-            });
-          };
-
-          fadeOutAudio(whooshAudioRef.current, 500).then(() => {
-            console.log('🔇 Whoosh audio faded out');
-          });
-        }
-        
-        // Immediately play what.mp3 after a brief delay
-        setTimeout(() => {
-          if (!isMutedRef.current && whatAudioRef.current) {
-            console.log('🎵 Playing what.mp3 for final page transition');
-            whatAudioRef.current.currentTime = 0;
-            whatAudioRef.current.play().catch((error: unknown) => {
-              console.log('❌ What audio transition play failed:', error);
-            });
-          }
-        }, 600); // Small delay to let fade finish
-      }
-    }
-  }, [pathname]);
 
   return (
     <div
