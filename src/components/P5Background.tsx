@@ -197,17 +197,17 @@ export default function P5Background() {
               return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
             }
             
-            // Subtle continuous mouse distortion field - slower and more subtle for text readability
+            // Subtle continuous mouse distortion field - more noticeable intensity
             float mouseDistortion(vec2 uv, vec2 mousePos, float time) {
               float dist = distance(uv, mousePos);
               
-              // Continuous field that doesn't fade - much more subtle intensities
-              float field1 = sin(time * 0.3 + dist * 4.0) * exp(-dist * 1.5) * 0.06;
-              float field2 = cos(time * 0.2 + dist * 3.0) * exp(-dist * 2.0) * 0.05;
-              float field3 = sin(time * 0.4 + dist * 5.0) * exp(-dist * 2.5) * 0.03;
+              // Continuous field that doesn't fade - increased intensities for better visibility
+              float field1 = sin(time * 0.3 + dist * 4.0) * exp(-dist * 1.5) * 0.12;
+              float field2 = cos(time * 0.2 + dist * 3.0) * exp(-dist * 2.0) * 0.10;
+              float field3 = sin(time * 0.4 + dist * 5.0) * exp(-dist * 2.5) * 0.08;
               
-              // Add some gentle ripples that continue radiating - much more subtle
-              float ripple = sin(dist * 12.0 - time * 0.8) * exp(-dist * 1.8) * 0.04;
+              // Add some gentle ripples that continue radiating - more visible
+              float ripple = sin(dist * 12.0 - time * 0.8) * exp(-dist * 1.8) * 0.08;
               
               return field1 + field2 + field3 + ripple;
             }
@@ -279,8 +279,8 @@ export default function P5Background() {
               // Base ocean waves
               float oceanPattern = oceanWaves(uv, u_time);
               
-              // Combine all effects with much more subtle mouse field for text readability
-              float totalEffect = oceanPattern + globalPattern * 0.8 + mouseField * 0.6;
+              // Combine all effects with more noticeable mouse field
+              float totalEffect = oceanPattern + globalPattern * 0.8 + mouseField * 1.2;
               
               // Normalize and smooth the effect
               float effectIntensity = (totalEffect + 1.5) * 0.4;
@@ -346,9 +346,10 @@ export default function P5Background() {
               // Combine halftone patterns
               float finalHalftone = halftonePattern * 0.7 + halftone2 * 0.3;
               
-              // Apply halftone as color enhancement instead of gray overlay
-              // Use additive blending to brighten colors rather than darken
-              vec3 finalColor = baseColor + baseColor * finalHalftone * 0.15;
+              // Apply halftone with subtle color enhancement - visible but not white
+              // Create lighter version of base color for halftone dots
+              vec3 lighterColor = baseColor + vec3(0.08, 0.1, 0.15); // Light sky blue boost
+              vec3 finalColor = mix(baseColor, lighterColor, finalHalftone * 0.4);
               
               // Subtle highlights for mouse area and wave peaks
               float mouseGlow = mouseProximity * 0.08;
