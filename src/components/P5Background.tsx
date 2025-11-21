@@ -176,6 +176,7 @@ export default function P5Background() {
             uniform vec2 u_resolution;
             uniform vec2 u_mouse;
             uniform float u_mouseInfluence;
+            uniform float u_reducedMotion;
             
             // Simple noise function
             float noise(vec2 st) {
@@ -197,8 +198,13 @@ export default function P5Background() {
               return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
             }
             
-            // Subtle continuous mouse distortion field - more noticeable intensity
-            float mouseDistortion(vec2 uv, vec2 mousePos, float time) {
+            // Subtle continuous mouse distortion field - respects reduced motion
+            float mouseDistortion(vec2 uv, vec2 mousePos, float time, float reducedMotion) {
+              // If reduced motion is enabled, return no distortion
+              if (reducedMotion > 0.5) {
+                return 0.0;
+              }
+              
               float dist = distance(uv, mousePos);
               
               // Continuous field that doesn't fade - increased intensities for better visibility
@@ -270,8 +276,8 @@ export default function P5Background() {
             void main() {
               vec2 uv = vTexCoord;
               
-              // Create continuous mouse distortion field (always active, not dependent on mouseInfluence)
-              float mouseField = mouseDistortion(uv, u_mouse, u_time);
+              // Create continuous mouse distortion field (respects reduced motion setting)
+              float mouseField = mouseDistortion(uv, u_mouse, u_time, u_reducedMotion);
               
               // Enhanced global ripple system
               float globalPattern = globalRipples(uv, u_time);
@@ -437,6 +443,7 @@ export default function P5Background() {
           waveShader.setUniform('u_resolution', [p.width, p.height]);
           waveShader.setUniform('u_mouse', [lerpedMouseX, lerpedMouseY]); // Use lerped position
           waveShader.setUniform('u_mouseInfluence', mouseInfluence);
+          waveShader.setUniform('u_reducedMotion', reducedMotionRef.current ? 1.0 : 0.0);
 
           // Draw a rectangle that covers the entire canvas
           p.rect(-p.width / 2, -p.height / 2, p.width, p.height);
